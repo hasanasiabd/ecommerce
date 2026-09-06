@@ -1,86 +1,166 @@
-// src/app/dashboard/layout.tsx
-
-"use client";
+// FILE: src/app/dashboard/layout.tsx
 
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import {
+  ArrowLeft,
+  Code2,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
+import { getSession } from "@/lib/auth";
+import { getAdminPanelPath, getDeveloperPanelPath } from "@/lib/env";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoutButton } from "@/components/logout-button";
+import { CustomerNavigation } from "@/components/customer-navigation";
 
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      if (res.ok) {
-        router.push("/login");
-        router.refresh();
-      }
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getSession();
 
-  const menuItems = [
-    { name: "Dashboard", href: "/dashboard", icon: "📊" },
-    { name: "My Orders", href: "/dashboard/orders", icon: "📦" },
-    { name: "Wishlist", href: "/dashboard/wishlist", icon: "❤️" },
-    { name: "Settings", href: "/dashboard/settings", icon: "⚙️" },
-  ];
+  if (!session) {
+    return null;
+  }
+
+  const isAdmin =
+    session.role === "ADMIN" ||
+    session.role === "DEVELOPER";
+
+  const isDeveloper =
+    session.role === "DEVELOPER";
+
+  const adminPath = isAdmin
+    ? getAdminPanelPath()
+    : null;
+
+  const developerPath = isDeveloper
+    ? getDeveloperPanelPath()
+    : null;
 
   return (
-    <div className="flex min-h-screen bg-gray-950 text-white flex-col md:flex-row">
-      <aside className="flex flex-col justify-between w-full md:w-64 border-r border-gray-800 bg-gray-950 p-6">
-        <div className="space-y-6">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+        <aside className="hidden w-72 shrink-0 border-r border-border bg-card/80 p-5 lg:flex lg:flex-col">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-white">My Account</h2>
-            <p className="text-xs text-gray-400 mt-1">Manage your profile and orders</p>
+            <Link
+              href="/"
+              className="mb-8 flex items-center gap-3 px-2"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                <ArrowLeft className="h-5 w-5" />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
+                  MyShop
+                </p>
+
+                <h1 className="font-bold">
+                  Customer Panel
+                </h1>
+              </div>
+            </Link>
+
+            <CustomerNavigation />
           </div>
 
-          <nav className="space-y-1">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
+          <div className="mt-auto border-t border-border pt-5">
+            <div className="mb-3">
+              <ThemeToggle />
+            </div>
+
+            {adminPath && (
+              <Link
+                href={adminPath}
+                className="mb-2 flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm font-medium text-indigo-500 transition hover:bg-indigo-500/20"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Back to Admin Panel
+              </Link>
+            )}
+
+            {developerPath && (
+              <Link
+                href={developerPath}
+                className="mb-2 flex items-center gap-3 rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-500 transition hover:bg-violet-500/20"
+              >
+                <Code2 className="h-4 w-4" />
+                Back to Developer Panel
+              </Link>
+            )}
+
+            <Link
+              href="/"
+              className="mb-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+
+            <LogoutButton
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-500 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </LogoutButton>
+          </div>
+        </aside>
+
+        <main className="min-w-0 flex-1">
+          <div className="border-b border-border bg-card/80 px-4 py-4 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
+                  MyShop
+                </p>
+
+                <h2 className="font-bold">
+                  Customer Panel
+                </h2>
+              </div>
+
+              <ThemeToggle />
+            </div>
+
+            <div className="mt-4">
+              <CustomerNavigation />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {adminPath && (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-                    isActive
-                      ? "bg-indigo-600 text-white shadow-md"
-                      : "text-gray-300 hover:bg-gray-900 hover:text-white"
-                  }`}
+                  href={adminPath}
+                  className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-500"
                 >
-                  <span>{item.icon}</span>
-                  {item.name}
+                  Admin Panel
                 </Link>
-              );
-            })}
-          </nav>
-        </div>
+              )}
 
-        <div className="pt-6 border-t border-gray-800 space-y-2 mt-6">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-900 hover:text-white transition"
-          >
-            <span>🏠</span> Back to Home
-          </Link>
+              {developerPath && (
+                <Link
+                  href={developerPath}
+                  className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-500"
+                >
+                  Developer Panel
+                </Link>
+              )}
 
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950/40 transition text-left cursor-pointer"
-          >
-            <span>🚪</span> Sign Out
-          </button>
-        </div>
-      </aside>
+              <LogoutButton
+                className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Logout
+              </LogoutButton>
+            </div>
+          </div>
 
-      <main className="flex-1 p-6 md:p-10">
-        {children}
-      </main>
+          <div className="p-5 sm:p-8 lg:p-10">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

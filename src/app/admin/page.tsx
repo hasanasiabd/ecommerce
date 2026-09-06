@@ -15,7 +15,9 @@ import {
 
 import { getSession } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoutButton } from "@/components/logout-button";
 import AdminLogin from "./admin-login";
+import { getDeveloperPanelPath } from "@/lib/env";
 
 export default async function AdminPage() {
   const session =
@@ -30,7 +32,7 @@ export default async function AdminPage() {
   }
 
   const developerPath =
-    `/${process.env.DEVELOPER_PANEL_PATH || "developer-panel"}`;
+    getDeveloperPanelPath();
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -73,18 +75,12 @@ export default async function AdminPage() {
               Customer Panel
             </Link>
 
-            <form
-              action="/api/auth/logout"
-              method="POST"
+            <LogoutButton
+              className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-500/20"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </form>
+              <LogOut className="h-4 w-4" />
+              Logout
+            </LogoutButton>
           </div>
         </div>
       </header>
