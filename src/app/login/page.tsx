@@ -1,121 +1,232 @@
-// src/app/login/page.tsx
+// FILE: src/app/login/page.tsx
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { FormEvent, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 
-export default function CustomerLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+import { ThemeToggle } from "@/components/theme-toggle";
+
+export default function LoginPage() {
   const router = useRouter();
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const [identity, setIdentity] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleLogin(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (loading) return;
+
     setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            identity,
+            password,
+          }),
+        }
+      );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
+      const data = await response.json();
 
-      // সফল লগইন হওয়ার পর সরাসরি ড্যাশবোর্ডে পাঠিয়ে দেওয়া
-      router.push("/dashboard");
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Unable to login."
+        );
+      }
+
+      /*
+       * Developer login requires OTP.
+       * Normal customer/admin login creates
+       * the session immediately.
+       */
+      if (data.requireOtp) {
+        throw new Error(
+          "This account requires the secure developer verification flow."
+        );
+      }
+
+      /*
+       * Server decides the correct destination.
+       * Hidden routes are never written in this
+       * client-side file.
+       */
+      if (data.redirectPath) {
+        router.push(data.redirectPath);
+      } else {
+        router.push("/dashboard");
+      }
+
       router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to login."
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    console.log(`Logging in with ${provider}`);
-  };
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-2xl">
-        <div className="text-center">
-          <Image
-            src="/logo.svg"
-            alt="Logo"
-            width={56}
-            height={56}
-            className="mx-auto rounded-xl"
-          />
-          <h2 className="mt-4 text-2xl font-bold text-white">
-            Sign in to your account
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Welcome back! Please enter your details.
-          </p>
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-center text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleEmailLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Email address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="mail@example.com"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {loading ? "Signing In..." : "Sign In"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-400">
-          Don't have an account?{" "}
-          <Link
-            href="/register"
-            className="font-semibold text-indigo-400 hover:underline"
-          >
-            Register here
-          </Link>
-        </p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">
+      <div className="absolute right-5 top-5 z-20">
+        <ThemeToggle />
       </div>
-    </div>
+
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 -top-24 h-80 w-80 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
+      </div>
+
+      <section className="relative z-10 w-full max-w-md">
+        <div className="rounded-3xl border border-border bg-card/95 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+          <div className="mb-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background shadow-sm">
+              <Image
+                src="/logo.svg"
+                alt="MyShop"
+                width={44}
+                height={44}
+              />
+            </div>
+
+            <h1 className="mt-5 text-3xl font-bold tracking-tight">
+              Welcome back
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Sign in to access your MyShop account.
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-500">
+              {error}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleLogin}
+            className="space-y-5"
+          >
+            <div>
+              <label
+                htmlFor="identity"
+                className="mb-2 block text-sm font-medium"
+              >
+                Username or Email
+              </label>
+
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <input
+                  id="identity"
+                  type="text"
+                  required
+                  autoComplete="username"
+                  value={identity}
+                  onChange={(event) =>
+                    setIdentity(
+                      event.target.value
+                    )
+                  }
+                  placeholder="username or email"
+                  className="w-full rounded-2xl border border-border bg-background px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-medium"
+              >
+                Password
+              </label>
+
+              <div className="relative">
+                <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Enter your password"
+                  className="w-full rounded-2xl border border-border bg-background px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-7 border-t border-border pt-6">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Secure session authentication
+            </div>
+
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link
+                href="/register"
+                className="font-semibold text-indigo-500 hover:underline"
+              >
+                Create one
+              </Link>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

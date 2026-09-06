@@ -1,133 +1,305 @@
+// FILE: src/app/register/page.tsx
+
 "use client";
 
-import { useState } from "react";
+import {
+  FormEvent,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  ArrowRight,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  UserRound,
+} from "lucide-react";
+
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const [username, setUsername] =
+    useState("");
+
+  const [name, setName] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  async function handleRegister(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (loading) return;
+
     setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
+      const response =
+        await fetch(
+          "/api/auth/register",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              username,
+              name,
+              email,
+              password,
+            }),
+          }
+        );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Registration failed");
+      const data =
+        await response.json();
 
-      // OTP ভেরিফিকেশনের জন্য ইউজারের নাম, ইমেইল ও পাসওয়ার্ড জমা রাখা
-      localStorage.setItem(
-        "pending_auth",
-        JSON.stringify({ name, email, password })
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to create account."
+        );
+      }
+
+      /*
+       * Only email and verification purpose
+       * are sent through the URL.
+       *
+       * No password is stored in the browser.
+       */
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "email",
+        data.email
       );
 
-      // OTP ভেরিফিকেশন পেজে পাঠানো
-      router.push("/verify-otp");
-    } catch (err) {
-      setError((err as Error).message);
+      params.set(
+        "purpose",
+        "REGISTRATION"
+      );
+
+      router.push(
+        `/verify-otp?${params.toString()}`
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create account."
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-2xl">
-        <div className="text-center">
-          <Image
-            src="/logo.svg"
-            alt="Logo"
-            width={56}
-            height={56}
-            className="mx-auto rounded-xl"
-          />
-          <h2 className="mt-4 text-2xl font-bold text-white">Create an account</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Join us to get started with your account.
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">
+      <div className="absolute right-5 top-5 z-20">
+        <ThemeToggle />
+      </div>
+
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 -top-24 h-80 w-80 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
+      </div>
+
+      <section className="relative z-10 w-full max-w-md">
+        <div className="rounded-3xl border border-border bg-card/95 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+          <div className="mb-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background">
+              <Image
+                src="/logo.svg"
+                alt="MyShop"
+                width={44}
+                height={44}
+              />
+            </div>
+
+            <h1 className="mt-5 text-3xl font-bold tracking-tight">
+              Create your account
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Create a MyShop account and verify your
+              email securely.
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-500">
+              {error}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleRegister}
+            className="space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="username"
+                className="mb-2 block text-sm font-medium"
+              >
+                Username
+              </label>
+
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <input
+                  id="username"
+                  type="text"
+                  required
+                  autoComplete="username"
+                  value={username}
+                  onChange={(event) =>
+                    setUsername(
+                      event.target.value
+                        .toLowerCase()
+                    )
+                  }
+                  placeholder="your_username"
+                  className="w-full rounded-2xl border border-border bg-background px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                3–30 characters: letters, numbers and
+                underscores.
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="name"
+                className="mb-2 block text-sm font-medium"
+              >
+                Full Name
+              </label>
+
+              <input
+                id="name"
+                type="text"
+                required
+                autoComplete="name"
+                value={name}
+                onChange={(event) =>
+                  setName(
+                    event.target.value
+                  )
+                }
+                placeholder="Your full name"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-2 block text-sm font-medium"
+              >
+                Email
+              </label>
+
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) =>
+                    setEmail(
+                      event.target.value
+                    )
+                  }
+                  placeholder="you@example.com"
+                  className="w-full rounded-2xl border border-border bg-background px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-medium"
+              >
+                Password
+              </label>
+
+              <div className="relative">
+                <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(
+                      event.target.value
+                    )
+                  }
+                  placeholder="At least 8 characters"
+                  className="w-full rounded-2xl border border-border bg-background px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sending verification...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-semibold text-indigo-500 hover:underline"
+            >
+              Sign in
+            </Link>
           </p>
         </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-center text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your Name"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Email address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="mail@example.com"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {loading ? "Sending OTP..." : "Create Account"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-400">
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-semibold text-indigo-400 hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

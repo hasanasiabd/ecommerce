@@ -6,16 +6,13 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
-export async function POST(
-  request: Request
-) {
+/**
+ * GET
+ * Developer only.
+ * Returns all admin accounts.
+ */
+export async function GET() {
   try {
-    /*
-     * ========================================================
-     * VERIFY CURRENT SESSION
-     * ========================================================
-     */
-
     const session = await getSession();
 
     if (!session) {
@@ -27,17 +24,80 @@ export async function POST(
       );
     }
 
-    /*
-     * ========================================================
-     * ONLY DEVELOPER CAN CREATE ADMINS
-     * ========================================================
-     */
+    if (session.role !== "DEVELOPER") {
+      return NextResponse.json(
+        {
+          error:
+            "Only developers can access administrator management.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const admins = await db.user.findMany({
+      where: {
+        role: "ADMIN",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      admins,
+    });
+  } catch (error) {
+    console.error(
+      "Get admins error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Unable to load administrator accounts.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST
+ * Developer only.
+ * Creates a new ADMIN.
+ */
+export async function POST(
+  request: Request
+) {
+  try {
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
 
     if (session.role !== "DEVELOPER") {
       return NextResponse.json(
         {
           error:
-            "Only a developer can create administrator accounts.",
+            "Only developers can create administrators.",
         },
         { status: 403 }
       );
@@ -47,17 +107,16 @@ export async function POST(
 
     const username =
       typeof body.username === "string"
-        ? body.username.trim().toLowerCase()
+        ? body.username
+            .trim()
+            .toLowerCase()
         : "";
 
     const email =
       typeof body.email === "string"
-        ? body.email.trim().toLowerCase()
-        : "";
-
-    const password =
-      typeof body.password === "string"
-        ? body.password
+        ? body.email
+            .trim()
+            .toLowerCase()
         : "";
 
     const name =
@@ -65,13 +124,16 @@ export async function POST(
         ? body.name.trim()
         : "";
 
-    /*
-     * ========================================================
-     * VALIDATION
-     * ========================================================
-     */
+    const password =
+      typeof body.password === "string"
+        ? body.password
+        : "";
 
-    if (!username || !email || !password) {
+    if (
+      !username ||
+      !email ||
+      !password
+    ) {
       return NextResponse.json(
         {
           error:
@@ -81,11 +143,29 @@ export async function POST(
       );
     }
 
-    if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+    if (
+      !/^[a-z0-9_]{3,30}$/.test(
+        username
+      )
+    ) {
       return NextResponse.json(
         {
           error:
-            "Username must be 3-30 characters and may contain only lowercase letters, numbers and underscores.",
+            "Username must contain 3-30 lowercase letters, numbers or underscores.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Please enter a valid email address.",
         },
         { status: 400 }
       );
@@ -101,27 +181,7 @@ export async function POST(
       );
     }
 
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        email
-      )
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Please provide a valid email address.",
-        },
-        { status: 400 }
-      );
-    }
-
-    /*
-     * ========================================================
-     * CHECK DUPLICATE USERNAME / EMAIL
-     * ========================================================
-     */
-
-    const existingUser =
+    const duplicate =
       await db.user.findFirst({
         where: {
           OR: [
@@ -133,42 +193,29 @@ export async function POST(
             },
           ],
         },
+        select: {
+          username: true,
+          email: true,
+        },
       });
 
-    if (existingUser) {
-      if (existingUser.username === username) {
-        return NextResponse.json(
-          {
-            error:
-              "This username is already in use.",
-          },
-          { status: 409 }
-        );
-      }
-
+    if (duplicate) {
       return NextResponse.json(
         {
           error:
-            "This email is already in use.",
+            duplicate.username === username
+              ? "Username already exists."
+              : "Email already exists.",
         },
         { status: 409 }
       );
     }
 
-    /*
-     * ========================================================
-     * HASH PASSWORD
-     * ========================================================
-     */
-
     const passwordHash =
-      await bcrypt.hash(password, 12);
-
-    /*
-     * ========================================================
-     * CREATE ADMIN
-     * ========================================================
-     */
+      await bcrypt.hash(
+        password,
+        12
+      );
 
     const admin =
       await db.user.create({
@@ -177,8 +224,19 @@ export async function POST(
           email,
           name:
             name || username,
-          password: passwordHash,
+          password:
+            passwordHash,
           role: "ADMIN",
+          isActive: true,
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
         },
       });
 
@@ -186,15 +244,8 @@ export async function POST(
       {
         success: true,
         message:
-          "Administrator account created successfully.",
-        admin: {
-          id: admin.id,
-          username: admin.username,
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          createdAt: admin.createdAt,
-        },
+          "Administrator created successfully.",
+        admin,
       },
       { status: 201 }
     );
@@ -207,7 +258,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "Unable to create administrator account.",
+          "Unable to create administrator.",
       },
       { status: 500 }
     );

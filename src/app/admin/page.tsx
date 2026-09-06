@@ -1,137 +1,201 @@
-"use client";
+// FILE: src/app/admin/page.tsx
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  BarChart3,
+  Boxes,
+  Code2,
+  LogOut,
+  PackageSearch,
+  ShieldCheck,
+  ShoppingCart,
+  Users,
+} from "lucide-react";
 
-export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const router = useRouter();
+import { getSession } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
+import AdminLogin from "./admin-login";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+export default async function AdminPage() {
+  const session =
+    await getSession();
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+  if (
+    !session ||
+    (session.role !== "ADMIN" &&
+      session.role !== "DEVELOPER")
+  ) {
+    return <AdminLogin />;
+  }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
-
-      // রোল চেক করা
-      if (data.user.role !== "ADMIN" && data.user.role !== "DEVELOPER") {
-        throw new Error("Access denied. Admin permissions required.");
-      }
-
-      router.push("/admin");
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    // Firebase Social Auth Trigger
-    console.log(`Admin signing in with ${provider}`);
-  };
+  const developerPath =
+    `/${process.env.DEVELOPER_PANEL_PATH || "developer-panel"}`;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-2xl">
-        <div className="text-center">
-          <Image
-            src="/logo.svg"
-            alt="Logo"
-            width={56}
-            height={56}
-            className="mx-auto rounded-xl"
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
+                MyShop
+              </p>
+
+              <h1 className="text-xl font-bold">
+                Admin Panel
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <ThemeToggle />
+
+            {session.role ===
+              "DEVELOPER" && (
+              <Link
+                href={developerPath}
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2.5 text-sm font-medium text-indigo-500 transition hover:bg-indigo-500/20"
+              >
+                <Code2 className="h-4 w-4" />
+                Developer Panel
+              </Link>
+            )}
+
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-accent"
+            >
+              Customer Panel
+            </Link>
+
+            <form
+              action="/api/auth/logout"
+              method="POST"
+            >
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-8 rounded-3xl border border-border bg-card p-6 shadow-sm">
+          <div className="max-w-3xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
+              <ShieldCheck className="h-4 w-4" />
+              {session.role ===
+              "DEVELOPER"
+                ? "Developer Access"
+                : "Administrator Access"}
+            </div>
+
+            <h2 className="text-3xl font-bold tracking-tight">
+              Store Administration
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Manage products, orders, customers,
+              inventory and store operations from one
+              central workspace.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <AdminCard
+            icon={PackageSearch}
+            title="Products"
+            description="Create, edit, remove and manage store products."
           />
-          <h2 className="mt-4 text-2xl font-bold text-white">Admin Portal</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Sign in to manage store operations
-          </p>
-        </div>
 
-        {error && (
-          <div className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-center text-sm text-red-400">
-            {error}
-          </div>
-        )}
+          <AdminCard
+            icon={Boxes}
+            title="Inventory"
+            description="Monitor stock levels and inventory operations."
+          />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Email address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="mail@example.com"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
+          <AdminCard
+            icon={ShoppingCart}
+            title="Orders"
+            description="Review and manage customer orders and delivery status."
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
+          <AdminCard
+            icon={Users}
+            title="Customers"
+            description="View and manage registered customer accounts."
+          />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {loading ? "Signing In..." : "Sign In as Admin"}
-          </button>
-        </form>
+          <AdminCard
+            icon={BarChart3}
+            title="Reports"
+            description="Business statistics and store performance will appear here."
+          />
 
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-800" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-gray-900 px-2 text-gray-400">
-              Or continue with
-            </span>
-          </div>
-        </div>
+          {session.role ===
+            "DEVELOPER" && (
+            <Link
+              href={developerPath}
+              className="group rounded-3xl border border-indigo-500/20 bg-indigo-500/5 p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-500/40 hover:shadow-xl"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                  <Code2 className="h-6 w-6" />
+                </div>
 
-        <div className="space-y-3">
-          <button
-            onClick={() => handleSocialLogin("google")}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-700 bg-gray-800 py-3 text-sm font-medium text-white transition hover:bg-gray-750"
-          >
-            Sign in with Google
-          </button>
-          <button
-            onClick={() => handleSocialLogin("github")}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-700 bg-gray-800 py-3 text-sm font-medium text-white transition hover:bg-gray-750"
-          >
-            Sign in with GitHub
-          </button>
-        </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-indigo-500" />
+              </div>
+
+              <h3 className="mt-5 text-lg font-semibold">
+                Developer Console
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Open the developer-level system controls.
+              </p>
+            </Link>
+          )}
+        </section>
       </div>
+    </main>
+  );
+}
+
+function AdminCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{
+    className?: string;
+  }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+        <Icon className="h-6 w-6" />
+      </div>
+
+      <h3 className="mt-5 text-lg font-semibold">
+        {title}
+      </h3>
+
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
     </div>
   );
 }

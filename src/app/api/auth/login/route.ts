@@ -4,9 +4,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import { db } from "@/lib/db";
-import {
-  createSessionToken,
-} from "@/lib/auth";
+import { createSessionToken } from "@/lib/auth";
 import {
   createOtp,
 } from "@/lib/otp";
@@ -23,13 +21,28 @@ function setSessionCookie(
     value: token,
     httpOnly: true,
     secure:
-      process.env.NODE_ENV ===
-      "production",
+      process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge:
-      60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 7,
   });
+}
+
+function getPanelPath(
+  envName: string
+) {
+  const value =
+    process.env[envName]?.trim();
+
+  if (!value) {
+    throw new Error(
+      `${envName} is not configured.`
+    );
+  }
+
+  return value.startsWith("/")
+    ? value
+    : `/${value}`;
 }
 
 export async function POST(
@@ -66,7 +79,7 @@ export async function POST(
 
     /*
      * ========================================================
-     * MASTER DEVELOPER LOGIN
+     * DEVELOPER LOGIN
      * ========================================================
      */
 
@@ -126,14 +139,6 @@ export async function POST(
      * ========================================================
      * DATABASE USER / ADMIN LOGIN
      * ========================================================
-     *
-     * Identity can be:
-     *
-     * username
-     * OR
-     * email
-     *
-     * ========================================================
      */
 
     const user =
@@ -152,10 +157,7 @@ export async function POST(
         },
       });
 
-    if (
-      !user ||
-      !user.password
-    ) {
+    if (!user || !user.password) {
       return NextResponse.json(
         {
           error:
@@ -165,13 +167,23 @@ export async function POST(
       );
     }
 
-    const passwordValid =
+    if (!user.isActive) {
+      return NextResponse.json(
+        {
+          error:
+            "This account has been disabled.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const validPassword =
       await bcrypt.compare(
         password,
         user.password
       );
 
-    if (!passwordValid) {
+    if (!validPassword) {
       return NextResponse.json(
         {
           error:
@@ -180,12 +192,6 @@ export async function POST(
         { status: 401 }
       );
     }
-
-    /*
-     * ========================================================
-     * CREATE SESSION
-     * ========================================================
-     */
 
     const token =
       await createSessionToken({
@@ -194,11 +200,19 @@ export async function POST(
         role: user.role,
       });
 
+    const redirectPath =
+      user.role === "ADMIN"
+        ? getPanelPath(
+            "ADMIN_PANEL_PATH"
+          )
+        : "/dashboard";
+
     const response =
       NextResponse.json({
         success: true,
         message:
           "Login successful.",
+        redirectPath,
         user: {
           id: user.id,
           username:

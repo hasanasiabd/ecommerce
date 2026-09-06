@@ -1,188 +1,183 @@
-// src/app/developer/page.tsx
+// FILE: src/app/developer/page.tsx
 
-"use client";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Code2,
+  LogOut,
+  ShieldCheck,
+  ShoppingBag,
+  UserRound,
+} from "lucide-react";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import {
+  getAdminPanelPath,
+  getDeveloperPanelPath,
+} from "@/lib/env";
+import { ThemeToggle } from "@/components/theme-toggle";
+import DeveloperLogin from "./developer-login";
 
-export default function DeveloperPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"LOGIN" | "OTP">("LOGIN");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const router = useRouter();
+export default async function DeveloperPage() {
+  const session =
+    await getSession();
 
-  // পেজ লোড হওয়ার সময় কুকি চেক করা যাক ইউজার অলরেডি লগইনড কি না
-  useEffect(() => {
-    const hasSession = document.cookie.includes("myshop_session");
-    if (hasSession) {
-      setIsLoggedIn(true);
-    }
-  }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
-      if (data.requireOtp) {
-        setStep("OTP");
-      } else {
-        setIsLoggedIn(true);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code: otp }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Invalid OTP");
-      }
-
-      setIsLoggedIn(true);
-    } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("An unexpected error occurred");
-      setLoading(false);
-    }
-  };
-
-  // যদি ইউজার লগইন করা থাকে, তবে এখানে ডেভেলপার কনসোলের ড্যাশবোর্ড দেখাবে
-  if (isLoggedIn) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 text-white px-4">
-        <div className="w-full max-w-2xl rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center space-y-4 shadow-2xl">
-          <h1 className="text-3xl font-bold text-green-400">Welcome to Developer Console! 🎉</h1>
-          <p className="text-gray-400">You have successfully authenticated via secure secret route.</p>
-          <button
-            onClick={() => {
-              document.cookie = "myshop_session=; Max-Age=0; path=/;";
-              setIsLoggedIn(false);
-              router.refresh();
-            }}
-            className="rounded-lg bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-500 transition cursor-pointer"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    );
+  if (
+    !session ||
+    session.role !== "DEVELOPER"
+  ) {
+    return <DeveloperLogin />;
   }
 
+  const adminPanelPath =
+    getAdminPanelPath();
+
+  const developerPanelPath =
+    getDeveloperPanelPath();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-2xl">
-        <div className="text-center">
-          <Image src="/logo.svg" alt="Logo" width={56} height={56} className="mx-auto rounded-xl" />
-          <h2 className="mt-4 text-2xl font-bold text-white">
-            {step === "LOGIN" ? "Developer Login" : "Enter OTP Verification"}
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            {step === "LOGIN" ? "Enter your credentials to access Developer Console" : `OTP sent to ${email}`}
-          </p>
-        </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+              <Code2 className="h-5 w-5" />
+            </div>
 
-        {error && (
-          <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20 text-center">
-            {error}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
+                MyShop
+              </p>
+
+              <h1 className="text-xl font-bold">
+                Developer Console
+              </h1>
+            </div>
           </div>
-        )}
 
-        {step === "LOGIN" ? (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300">Email / Username</label>
-              <input
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="mail@example.com"
-                className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-500 transition disabled:opacity-50 cursor-pointer"
+            <Link
+              href={adminPanelPath}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-accent"
             >
-              {loading ? "Processing..." : "Sign in as Developer"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300">6-Digit OTP Code</label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="123456"
-                className="mt-1 block w-full text-center tracking-widest text-lg rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-              />
+              <ShoppingBag className="h-4 w-4" />
+              Admin Panel
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-accent"
+            >
+              <UserRound className="h-4 w-4" />
+              Customer Panel
+            </Link>
+
+            <form
+              action="/api/auth/logout"
+              method="POST"
+            >
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-8 rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 via-card to-card p-6 shadow-sm">
+          <div className="max-w-3xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
+              <ShieldCheck className="h-4 w-4" />
+              Developer Access
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-500 transition disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? "Verifying..." : "Verify OTP & Enter Console"}
-            </button>
-          </form>
-        )}
+            <h2 className="text-3xl font-bold tracking-tight">
+              Welcome back, Developer
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              You have full system-level access to MyShop.
+              Manage administrators now and access the
+              advanced system controls as we build them.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <Link
+            href={`${developerPanelPath}/admins`}
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-500/40 hover:shadow-xl"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+
+              <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-indigo-500" />
+            </div>
+
+            <h3 className="mt-5 text-lg font-semibold">
+              Administrator Management
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Create, manage, disable, activate,
+              reset and remove administrator accounts.
+            </p>
+          </Link>
+
+          <Link
+            href={adminPanelPath}
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:border-violet-500/40 hover:shadow-xl"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-500">
+                <ShoppingBag className="h-6 w-6" />
+              </div>
+
+              <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-violet-500" />
+            </div>
+
+            <h3 className="mt-5 text-lg font-semibold">
+              Admin Panel
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Enter the main store administration
+              workspace using developer privileges.
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard"
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-xl"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                <UserRound className="h-6 w-6" />
+              </div>
+
+              <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-emerald-500" />
+            </div>
+
+            <h3 className="mt-5 text-lg font-semibold">
+              Customer Panel
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Open the normal customer experience with
+              your developer account.
+            </p>
+          </Link>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

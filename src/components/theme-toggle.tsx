@@ -1,40 +1,67 @@
-// src/components/theme-toggle.tsx
+// FILE: src/components/theme-toggle.tsx
 
 "use client";
 
-import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 
 export function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const {
+    resolvedTheme,
+    setTheme,
+  } = useTheme();
 
-  // পেজ লোড হওয়ার পর মাউন্ট চেক নিশ্চিত করা
+  const [mounted, setMounted] =
+    useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) {
     return (
-      <div className="h-9 w-20 rounded-lg border border-gray-200 dark:border-gray-800" />
+      <div className="h-10 w-24 rounded-xl border border-border bg-card" />
     );
   }
 
+  const dark =
+    resolvedTheme === "dark";
+
   return (
     <button
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800"
-      aria-label="Toggle Theme"
+      type="button"
+      onClick={() =>
+        setTheme(
+          dark
+            ? "light"
+            : "dark"
+        )
+      }
+      className="
+        inline-flex
+        items-center
+        gap-2
+        rounded-xl
+        border border-border
+        bg-card
+        px-3.5 py-2.5
+        text-sm font-medium
+        transition
+        hover:bg-accent
+      "
+      aria-label="Toggle color theme"
+      title="Toggle color theme"
     >
-      {resolvedTheme === "dark" ? (
+      {dark ? (
         <>
-          <span>☀️</span>
-          <span>Light</span>
+          <Sun className="h-4 w-4" />
+          Light
         </>
       ) : (
         <>
-          <span>🌙</span>
-          <span>Dark</span>
+          <Moon className="h-4 w-4" />
+          Dark
         </>
       )}
     </button>

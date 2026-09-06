@@ -1,30 +1,47 @@
 // FILE: src/middleware.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 import { jwtVerify } from "jose";
 
 const SESSION_COOKIE =
   "myshop_session";
 
+type Role =
+  | "USER"
+  | "ADMIN"
+  | "DEVELOPER";
+
 function getJwtSecret() {
   const secret =
     process.env.JWT_SECRET;
 
-  if (!secret || secret.length < 32) {
+  if (
+    !secret ||
+    secret.length < 32
+  ) {
     throw new Error(
-      "JWT_SECRET is not configured correctly."
+      "JWT_SECRET must be configured and at least 32 characters long."
     );
   }
 
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(
+    secret
+  );
 }
 
-function getPanelPath(
-  value: string | undefined,
-  fallback: string
+function requireRoute(
+  name: string
 ) {
+  const value =
+    process.env[name]?.trim();
+
   if (!value) {
-    return fallback;
+    throw new Error(
+      `${name} is missing from environment variables.`
+    );
   }
 
   return value.startsWith("/")
@@ -34,7 +51,7 @@ function getPanelPath(
 
 async function getRole(
   request: NextRequest
-) {
+): Promise<Role | null> {
   const token =
     request.cookies.get(
       SESSION_COOKIE
@@ -68,6 +85,30 @@ async function getRole(
   }
 }
 
+function rewrite(
+  request: NextRequest,
+  path: string
+) {
+  return NextResponse.rewrite(
+    new URL(
+      path,
+      request.url
+    )
+  );
+}
+
+function redirect(
+  request: NextRequest,
+  path: string
+) {
+  return NextResponse.redirect(
+    new URL(
+      path,
+      request.url
+    )
+  );
+}
+
 export async function middleware(
   request: NextRequest
 ) {
@@ -75,115 +116,55 @@ export async function middleware(
     request.nextUrl.pathname;
 
   const adminPath =
-    getPanelPath(
-      process.env.ADMIN_PANEL_PATH,
-      "/as2ad"
+    requireRoute(
+      "ADMIN_PANEL_PATH"
     );
 
   const developerPath =
-    getPanelPath(
-      process.env.DEVELOPER_PANEL_PATH,
-      "/as1dev"
+    requireRoute(
+      "DEVELOPER_PANEL_PATH"
     );
 
   /*
-   * ========================================================
-   * BLOCK PUBLIC ADMIN URL
-   * ========================================================
+   * ============================================================
+   * NEVER expose internal panel URLs
+   * ============================================================
    */
 
   if (
     pathname === "/admin" ||
     pathname.startsWith("/admin/")
   ) {
-    return NextResponse.rewrite(
-      new URL(
-        "/404",
-        request.url
-      )
+    return rewrite(
+      request,
+      "/404"
     );
   }
-
-  /*
-   * ========================================================
-   * BLOCK PUBLIC DEVELOPER URL
-   * ========================================================
-   */
 
   if (
     pathname === "/developer" ||
     pathname.startsWith("/developer/")
   ) {
-    return NextResponse.rewrite(
-      new URL(
-        "/404",
-        request.url
-      )
+    return rewrite(
+      request,
+      "/404"
     );
   }
 
   /*
-   * ========================================================
-   * SECRET ADMIN ROUTE
-   * ========================================================
-   */
-
-  if (
-    pathname === adminPath ||
-    pathname.startsWith(
-      `${adminPath}/`
-    )
-  ) {
-    const role =
-      await getRole(request);
-
-    /*
-     * Not logged in:
-     * allow secret route to show
-     * admin login UI.
-     */
-
-    if (!role) {
-      return NextResponse.rewrite(
-        new URL(
-          "/admin",
-          request.url
-        )
-      );
-    }
-
-    /*
-     * ADMIN + DEVELOPER
-     * both can enter Admin Panel.
-     */
-
-    if (
-      role !== "ADMIN" &&
-      role !== "DEVELOPER"
-    ) {
-      return NextResponse.redirect(
-        new URL(
-          "/dashboard",
-          request.url
-        )
-      );
-    }
-
-    return NextResponse.rewrite(
-      new URL(
-        pathname.replace(
-          adminPath,
-          "/admin"
-        ) || "/admin",
-        request.url
-      )
-    );
-  }
-
-  /*
-   * ========================================================
-   * SECRET DEVELOPER ROUTE
-   * ========================================================
+   * ============================================================
+   * DEVELOPER SECRET ROUTE
+   * ============================================================
+   *
+   * Everything under the secret route maps internally
+   * to /developer/*
+   *
+   * Example:
+   *
+   * ENV secret + /admins
+   *        ↓
+   * /developer/admins
+   * ============================================================
    */
 
   if (
@@ -197,46 +178,108 @@ export async function middleware(
 
     /*
      * Not logged in:
-     * show developer login UI.
+     * show Developer login page.
      */
 
     if (!role) {
-      return NextResponse.rewrite(
-        new URL(
-          "/developer",
-          request.url
-        )
+      return rewrite(
+        request,
+        pathname.replace(
+          developerPath,
+          "/developer"
+        ) || "/developer"
       );
     }
 
     /*
-     * ONLY DEVELOPER
+     * Developer only.
      */
 
-    if (role !== "DEVELOPER") {
-      return NextResponse.redirect(
-        new URL(
-          "/dashboard",
-          request.url
-        )
+    if (
+      role !== "DEVELOPER"
+    ) {
+      return redirect(
+        request,
+        "/dashboard"
       );
     }
 
-    return NextResponse.rewrite(
-      new URL(
-        pathname.replace(
-          developerPath,
-          "/developer"
-        ) || "/developer",
-        request.url
-      )
+    const internalPath =
+      pathname.replace(
+        developerPath,
+        "/developer"
+      ) || "/developer";
+
+    return rewrite(
+      request,
+      internalPath
     );
   }
 
   /*
-   * ========================================================
+   * ============================================================
+   * ADMIN SECRET ROUTE
+   * ============================================================
+   *
+   * Everything under the secret route maps internally
+   * to /admin/*
+   * ============================================================
+   */
+
+  if (
+    pathname === adminPath ||
+    pathname.startsWith(
+      `${adminPath}/`
+    )
+  ) {
+    const role =
+      await getRole(request);
+
+    /*
+     * Not logged in:
+     * show Admin login page.
+     */
+
+    if (!role) {
+      return rewrite(
+        request,
+        pathname.replace(
+          adminPath,
+          "/admin"
+        ) || "/admin"
+      );
+    }
+
+    /*
+     * ADMIN + DEVELOPER
+     */
+
+    if (
+      role !== "ADMIN" &&
+      role !== "DEVELOPER"
+    ) {
+      return redirect(
+        request,
+        "/dashboard"
+      );
+    }
+
+    const internalPath =
+      pathname.replace(
+        adminPath,
+        "/admin"
+      ) || "/admin";
+
+    return rewrite(
+      request,
+      internalPath
+    );
+  }
+
+  /*
+   * ============================================================
    * CUSTOMER PANEL
-   * ========================================================
+   * ============================================================
    */
 
   if (
@@ -253,11 +296,9 @@ export async function middleware(
       await getRole(request);
 
     if (!role) {
-      return NextResponse.redirect(
-        new URL(
-          "/login",
-          request.url
-        )
+      return redirect(
+        request,
+        "/login"
       );
     }
   }

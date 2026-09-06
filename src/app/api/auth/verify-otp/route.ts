@@ -15,7 +15,8 @@ function setSessionCookie(
     value: token,
     httpOnly: true,
     secure:
-      process.env.NODE_ENV === "production",
+      process.env.NODE_ENV ===
+      "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
@@ -105,7 +106,8 @@ export async function POST(
       if (!result.success) {
         return NextResponse.json(
           {
-            error: result.error,
+            error:
+              result.error,
           },
           { status: 400 }
         );
@@ -114,23 +116,34 @@ export async function POST(
       const developer =
         await db.user.upsert({
           where: {
-            email: developerEmail,
+            email:
+              developerEmail,
           },
           create: {
-            email: developerEmail,
+            username:
+              "developer",
+            email:
+              developerEmail,
             name: "Developer",
-            role: "DEVELOPER",
+            role:
+              "DEVELOPER",
+            isActive: true,
           },
           update: {
-            role: "DEVELOPER",
+            role:
+              "DEVELOPER",
+            isActive: true,
           },
         });
 
       const token =
         await createSessionToken({
-          userId: developer.id,
-          email: developer.email,
-          role: "DEVELOPER",
+          userId:
+            developer.id,
+          email:
+            developer.email,
+          role:
+            "DEVELOPER",
         });
 
       const response =
@@ -139,10 +152,16 @@ export async function POST(
           message:
             "Developer authentication successful.",
           user: {
-            id: developer.id,
-            name: developer.name,
-            email: developer.email,
-            role: developer.role,
+            id:
+              developer.id,
+            username:
+              developer.username,
+            name:
+              developer.name,
+            email:
+              developer.email,
+            role:
+              developer.role,
           },
         });
 
@@ -164,13 +183,15 @@ export async function POST(
       await verifyOtp({
         email,
         code,
-        purpose: "REGISTRATION",
+        purpose:
+          "REGISTRATION",
       });
 
     if (!result.success) {
       return NextResponse.json(
         {
-          error: result.error,
+          error:
+            result.error,
         },
         { status: 400 }
       );
@@ -179,20 +200,31 @@ export async function POST(
     const otpRecord =
       result.record;
 
-    if (!otpRecord.passwordHash) {
+    if (
+      !otpRecord.username ||
+      !otpRecord.passwordHash
+    ) {
       return NextResponse.json(
         {
           error:
-            "Registration session is invalid.",
+            "Registration verification data is incomplete.",
         },
         { status: 400 }
       );
     }
 
     const existingUser =
-      await db.user.findUnique({
+      await db.user.findFirst({
         where: {
-          email,
+          OR: [
+            {
+              email,
+            },
+            {
+              username:
+                otpRecord.username,
+            },
+          ],
         },
       });
 
@@ -200,7 +232,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "An account with this email already exists.",
+            "This username or email is already registered.",
         },
         { status: 409 }
       );
@@ -209,19 +241,27 @@ export async function POST(
     const user =
       await db.user.create({
         data: {
-            username: otpRecord.username!,
-            email,
-            name: otpRecord.name,
-            password: otpRecord.passwordHash,
-            role: "USER",
+          username:
+            otpRecord.username,
+          email,
+          name:
+            otpRecord.name,
+          password:
+            otpRecord.passwordHash,
+          role:
+            "USER",
+          isActive: true,
         },
       });
 
     const token =
       await createSessionToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
+        userId:
+          user.id,
+        email:
+          user.email,
+        role:
+          user.role,
       });
 
     const response =
@@ -230,10 +270,16 @@ export async function POST(
         message:
           "Account created successfully.",
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
+          id:
+            user.id,
+          username:
+            user.username,
+          name:
+            user.name,
+          email:
+            user.email,
+          role:
+            user.role,
         },
       });
 
