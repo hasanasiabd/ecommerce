@@ -10,6 +10,9 @@
 .env
 
 
+ecommerce/
+ecommerce.zip
+
 # dependencies
 /node_modules
 /.pnp
@@ -52,3 +55,4 @@ next-env.d.ts
 # Environment secrets
 .env
 .env.local
+ecommerce.zip
