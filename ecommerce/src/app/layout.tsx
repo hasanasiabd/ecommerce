@@ -1,8 +1,7 @@
-// FILE: src/app/layout.tsx
+// src/app/layout.tsx
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -17,9 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "My Shop",
-  description:
-    "Modern full-stack e-commerce platform",
+  title: "My Shop - Modern E-Commerce",
+  description: "Next-gen full-stack e-commerce platform",
   icons: {
     icon: "/logo.svg",
   },
@@ -31,25 +29,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-    >
-      <body
-        className={`
-          ${geistSans.variable}
-          ${geistMono.variable}
-          antialiased
-          bg-background
-          text-foreground
-        `}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
       </body>

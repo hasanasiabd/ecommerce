@@ -1,20 +1,50 @@
+/* FILE: src/app/globals.css */
+
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@layer base {
-  :root {
-    --background: #ffffff;
-    --foreground: #09090b;
-  }
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+}
 
-  .dark {
-    --background: #030712;
-    --foreground: #f8fafc;
-  }
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --border: #e2e8f0;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+
+  --border: #1e293b;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
-  background-color: var(--background);
+  min-height: 100vh;
+  background: var(--background);
   color: var(--foreground);
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 }

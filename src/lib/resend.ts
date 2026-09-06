@@ -1,44 +1,91 @@
-import { Resend } from 'resend';
-import { db } from './db';
+// FILE: src/lib/resend.ts
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { Resend } from "resend";
 
-export async function sendOtpEmail(email: string) {
-  // ৬ ডিজিটের র্যান্ডম ওটিপি জেনারেট
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  // ওটিপির মেয়াদের জন্য ৫ মিনিট সময় নির্ধারণ
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+const apiKey = process.env.RESEND_API_KEY;
 
-  // পুরনো ওটিপি থাকলে মুছে নতুনটি ডাটাবেজে সেভ করা
-  await db.otpVerification.deleteMany({ where: { email } });
-  await db.otpVerification.create({
-    data: {
-      email,
-      code: otpCode,
-      expiresAt,
-    },
-  });
+if (!apiKey) {
+  throw new Error("RESEND_API_KEY is not configured.");
+}
 
-  // Resend দিয়ে ইমেইল পাঠানো
-  const { data, error } = await resend.emails.send({
-    from: 'My Shop Auth <onboarding@resend.dev>',
-    to: email,
-    subject: 'Your Verification Code - My Shop',
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #4F46E5;">My Shop Verification Code</h2>
-        <p>Use the code below to verify your login attempt:</p>
-        <div style="background-color: #f3f4f6; padding: 12px 24px; font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1f2937; width: fit-content; border-radius: 6px;">
-          ${otpCode}
+const resend = new Resend(apiKey);
+
+export async function sendOtpEmail(
+  email: string,
+  otp: string,
+  purpose:
+    | "REGISTRATION"
+    | "DEVELOPER_LOGIN"
+) {
+  const isDeveloper =
+    purpose === "DEVELOPER_LOGIN";
+
+  const subject = isDeveloper
+    ? "Developer Console OTP - MyShop"
+    : "Verify Your MyShop Account";
+
+  const title = isDeveloper
+    ? "Developer Console Verification"
+    : "MyShop Email Verification";
+
+  const from =
+    process.env.RESEND_FROM_EMAIL ||
+    "MyShop <onboarding@resend.dev>";
+
+  const { data, error } =
+    await resend.emails.send({
+      from,
+      to: email,
+      subject,
+      html: `
+        <div style="
+          font-family: Arial, sans-serif;
+          max-width: 520px;
+          margin: 40px auto;
+          padding: 32px;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          background: #ffffff;
+        ">
+          <h2>${title}</h2>
+
+          <p>
+            Your verification code is:
+          </p>
+
+          <div style="
+            margin: 20px 0;
+            padding: 18px;
+            text-align: center;
+            border-radius: 12px;
+            background: #f3f4f6;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 8px;
+          ">
+            ${otp}
+          </div>
+
+          <p>
+            This code will expire in 5 minutes.
+          </p>
+
+          <p style="
+            margin-top: 24px;
+            color: #6b7280;
+            font-size: 13px;
+          ">
+            If you did not request this code,
+            you can safely ignore this email.
+          </p>
         </div>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">This code will expire in 5 minutes.</p>
-      </div>
-    `,
-  });
+      `,
+    });
 
   if (error) {
-    throw new Error(`Failed to send email: ${error.message}`);
+    throw new Error(
+      `Unable to send OTP email: ${error.message}`
+    );
   }
 
   return data;

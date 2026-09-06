@@ -1,96 +1,235 @@
-// src/app/api/auth/login/route.ts
+// FILE: src/app/api/auth/login/route.ts
 
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { db } from "@/lib/db";
+import {
+  createSessionToken,
+} from "@/lib/auth";
+import {
+  createOtp,
+} from "@/lib/otp";
+import {
+  sendOtpEmail,
+} from "@/lib/resend";
 
-export async function POST(req: Request) {
+function setSessionCookie(
+  response: NextResponse,
+  token: string
+) {
+  response.cookies.set({
+    name: "myshop_session",
+    value: token,
+    httpOnly: true,
+    secure:
+      process.env.NODE_ENV ===
+      "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge:
+      60 * 60 * 24 * 7,
+  });
+}
+
+export async function POST(
+  request: Request
+) {
   try {
-    const { email, password } = await req.json();
+    const body =
+      await request.json();
 
-    if (!email || !password) {
+    const identity =
+      typeof body.identity === "string"
+        ? body.identity.trim()
+        : typeof body.email === "string"
+          ? body.email.trim()
+          : "";
+
+    const password =
+      typeof body.password === "string"
+        ? body.password
+        : "";
+
+    if (!identity || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        {
+          error:
+            "Username/email and password are required.",
+        },
         { status: 400 }
       );
     }
 
-    const jwtSecret = process.env.JWT_SECRET || "fallback_secret_key_12345";
+    const normalizedIdentity =
+      identity.toLowerCase();
 
-    // ১. মাস্টার ডেভেলপার চেক
-    const isMasterDev = 
-      (email === process.env.MASTER_DEV_EMAIL || email === usernameMatch(email)) && 
-      password === process.env.MASTER_DEV_PASSWORD;
+    /*
+     * ========================================================
+     * MASTER DEVELOPER LOGIN
+     * ========================================================
+     */
 
-    const targetEmail = process.env.MASTER_DEV_EMAIL!;
+    const developerEmail =
+      process.env.MASTER_DEV_EMAIL
+        ?.trim()
+        .toLowerCase();
 
-    if (isMasterDev) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const developerPassword =
+      process.env.MASTER_DEV_PASSWORD;
 
-      await db.otpVerification.deleteMany({ where: { email: targetEmail } });
-      await db.otpVerification.create({
-        data: { email: targetEmail, code, expiresAt },
-      });
+    const developerUsername =
+      process.env.DEV_USERNAME
+        ?.trim()
+        .toLowerCase();
 
-      await resend.emails.send({
-        from: "My Shop <onboarding@resend.dev>",
-        to: targetEmail,
-        subject: "Developer Console Login OTP",
-        html: `<p>Your secure login OTP code is: <strong>${code}</strong>. It expires in 5 minutes.</p>`,
-      });
+    const isDeveloperLogin =
+      Boolean(
+        developerEmail &&
+        developerPassword
+      ) &&
+      (
+        normalizedIdentity ===
+          developerEmail ||
+        normalizedIdentity ===
+          developerUsername
+      ) &&
+      password ===
+        developerPassword;
 
-      return NextResponse.json({ 
-        success: true, 
+    if (isDeveloperLogin) {
+      const { code } =
+        await createOtp({
+          email:
+            developerEmail!,
+          purpose:
+            "DEVELOPER_LOGIN",
+        });
+
+      await sendOtpEmail(
+        developerEmail!,
+        code,
+        "DEVELOPER_LOGIN"
+      );
+
+      return NextResponse.json({
+        success: true,
         requireOtp: true,
-        email: targetEmail 
+        purpose:
+          "DEVELOPER_LOGIN",
+        email:
+          developerEmail,
       });
     }
 
-    // ২. সাধারণ ইউজারের জন্য ডাটাবেজ চেক
-    const user = await db.user.findUnique({ where: { email } });
-    if (!user || !user.password) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
+    /*
+     * ========================================================
+     * DATABASE USER / ADMIN LOGIN
+     * ========================================================
+     *
+     * Identity can be:
+     *
+     * username
+     * OR
+     * email
+     *
+     * ========================================================
+     */
+
+    const user =
+      await db.user.findFirst({
+        where: {
+          OR: [
+            {
+              email:
+                normalizedIdentity,
+            },
+            {
+              username:
+                normalizedIdentity,
+            },
+          ],
+        },
+      });
+
+    if (
+      !user ||
+      !user.password
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid username/email or password.",
+        },
+        { status: 401 }
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
+    const passwordValid =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
+
+    if (!passwordValid) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid username/email or password.",
+        },
+        { status: 401 }
+      );
     }
 
-    // JWT টোকেন জেনারেট করা
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role || "CUSTOMER" },
-      jwtSecret,
-      { expiresIn: "7d" }
+    /*
+     * ========================================================
+     * CREATE SESSION
+     * ========================================================
+     */
+
+    const token =
+      await createSessionToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+
+    const response =
+      NextResponse.json({
+        success: true,
+        message:
+          "Login successful.",
+        user: {
+          id: user.id,
+          username:
+            user.username,
+          name:
+            user.name,
+          email:
+            user.email,
+          role:
+            user.role,
+        },
+      });
+
+    setSessionCookie(
+      response,
+      token
     );
 
-    const response = NextResponse.json({ 
-      success: true, 
-      message: "Logged in successfully",
-      user: { id: user.id, name: user.name, email: user.email, role: user.role } 
-    });
-
-    response.cookies.set({
-      name: "myshop_session",
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    });
-
     return response;
-
   } catch (error) {
-    console.error("Login error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
-}
+    console.error(
+      "Login error:",
+      error
+    );
 
-function usernameMatch(input: string) {
-  return input === process.env.DEV_USERNAME ? process.env.MASTER_DEV_EMAIL : null;
+    return NextResponse.json(
+      {
+        error:
+          "Unable to login.",
+      },
+      { status: 500 }
+    );
+  }
 }

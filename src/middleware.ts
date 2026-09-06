@@ -1,88 +1,272 @@
-// src/middleware.ts
+// FILE: src/middleware.ts
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = request.cookies.get("myshop_session")?.value;
+const SESSION_COOKIE =
+  "myshop_session";
 
-  const secretDev = process.env.NEXT_PUBLIC_DEV_ROUTE
-    ? `/${process.env.NEXT_PUBLIC_DEV_ROUTE}`
-    : "/as1dev";
-  const secretAdmin = process.env.NEXT_PUBLIC_ADMIN_ROUTE
-    ? `/${process.env.NEXT_PUBLIC_ADMIN_ROUTE}`
-    : "/as2ad";
+function getJwtSecret() {
+  const secret =
+    process.env.JWT_SECRET;
 
-  // ১. সাধারণ ইউজার ড্যাশবোর্ড বা প্রটেক্টেড রাউটে ঢুকতে চাইলে
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/profile")) {
-    if (!token) {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-    try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-      await jwtVerify(token, secret);
-      return NextResponse.next();
-    } catch {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "JWT_SECRET is not configured correctly."
+    );
   }
 
-  // ২. কেউ যদি সরাসরি সিক্রেট রাউট ছাড়া আসল ফোল্ডারে ঢুকতে চায় (যেমন: /admin), তাকে 404 দেওয়া।
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    return NextResponse.rewrite(new URL("/404", request.url));
+  return new TextEncoder().encode(secret);
+}
+
+function getPanelPath(
+  value: string | undefined,
+  fallback: string
+) {
+  if (!value) {
+    return fallback;
   }
 
-  // ৩. সিক্রেট এডমিন রাউটে ঢুকতে চাইলে
-  if (pathname === secretAdmin) {
-    if (!token) {
-      return NextResponse.redirect(new URL("/developer", request.url));
-    }
+  return value.startsWith("/")
+    ? value
+    : `/${value}`;
+}
 
-    try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-      const { payload } = await jwtVerify(token, secret);
-      const role = payload.role as string;
+async function getRole(
+  request: NextRequest
+) {
+  const token =
+    request.cookies.get(
+      SESSION_COOKIE
+    )?.value;
 
-      if (role !== "ADMIN" && role !== "DEVELOPER") {
-        return NextResponse.redirect(new URL("/developer", request.url));
-      }
-
-      return NextResponse.rewrite(new URL("/developer", request.url));
-    } catch {
-      return NextResponse.redirect(new URL("/developer", request.url));
-    }
+  if (!token) {
+    return null;
   }
 
-  // ৪. সিক্রেট ডেভেলপার রাউটে ঢুকতে চাইলে
-  if (pathname === secretDev) {
-    if (!token) {
-      return NextResponse.rewrite(new URL("/developer", request.url));
+  try {
+    const { payload } =
+      await jwtVerify(
+        token,
+        getJwtSecret(),
+        {
+          algorithms: ["HS256"],
+        }
+      );
+
+    if (
+      payload.role !== "USER" &&
+      payload.role !== "ADMIN" &&
+      payload.role !== "DEVELOPER"
+    ) {
+      return null;
     }
 
-    try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-      const { payload } = await jwtVerify(token, secret);
-      const role = payload.role as string;
+    return payload.role;
+  } catch {
+    return null;
+  }
+}
 
-      if (role !== "DEVELOPER") {
-        return NextResponse.redirect(new URL("/developer", request.url));
-      }
+export async function middleware(
+  request: NextRequest
+) {
+  const pathname =
+    request.nextUrl.pathname;
 
-      return NextResponse.rewrite(new URL("/developer", request.url));
-    } catch {
-      return NextResponse.rewrite(new URL("/developer", request.url));
-    }
+  const adminPath =
+    getPanelPath(
+      process.env.ADMIN_PANEL_PATH,
+      "/as2ad"
+    );
+
+  const developerPath =
+    getPanelPath(
+      process.env.DEVELOPER_PANEL_PATH,
+      "/as1dev"
+    );
+
+  /*
+   * ========================================================
+   * BLOCK PUBLIC ADMIN URL
+   * ========================================================
+   */
+
+  if (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  ) {
+    return NextResponse.rewrite(
+      new URL(
+        "/404",
+        request.url
+      )
+    );
   }
 
-  if (pathname === "/developer") {
-    return NextResponse.next();
+  /*
+   * ========================================================
+   * BLOCK PUBLIC DEVELOPER URL
+   * ========================================================
+   */
+
+  if (
+    pathname === "/developer" ||
+    pathname.startsWith("/developer/")
+  ) {
+    return NextResponse.rewrite(
+      new URL(
+        "/404",
+        request.url
+      )
+    );
+  }
+
+  /*
+   * ========================================================
+   * SECRET ADMIN ROUTE
+   * ========================================================
+   */
+
+  if (
+    pathname === adminPath ||
+    pathname.startsWith(
+      `${adminPath}/`
+    )
+  ) {
+    const role =
+      await getRole(request);
+
+    /*
+     * Not logged in:
+     * allow secret route to show
+     * admin login UI.
+     */
+
+    if (!role) {
+      return NextResponse.rewrite(
+        new URL(
+          "/admin",
+          request.url
+        )
+      );
+    }
+
+    /*
+     * ADMIN + DEVELOPER
+     * both can enter Admin Panel.
+     */
+
+    if (
+      role !== "ADMIN" &&
+      role !== "DEVELOPER"
+    ) {
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard",
+          request.url
+        )
+      );
+    }
+
+    return NextResponse.rewrite(
+      new URL(
+        pathname.replace(
+          adminPath,
+          "/admin"
+        ) || "/admin",
+        request.url
+      )
+    );
+  }
+
+  /*
+   * ========================================================
+   * SECRET DEVELOPER ROUTE
+   * ========================================================
+   */
+
+  if (
+    pathname === developerPath ||
+    pathname.startsWith(
+      `${developerPath}/`
+    )
+  ) {
+    const role =
+      await getRole(request);
+
+    /*
+     * Not logged in:
+     * show developer login UI.
+     */
+
+    if (!role) {
+      return NextResponse.rewrite(
+        new URL(
+          "/developer",
+          request.url
+        )
+      );
+    }
+
+    /*
+     * ONLY DEVELOPER
+     */
+
+    if (role !== "DEVELOPER") {
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard",
+          request.url
+        )
+      );
+    }
+
+    return NextResponse.rewrite(
+      new URL(
+        pathname.replace(
+          developerPath,
+          "/developer"
+        ) || "/developer",
+        request.url
+      )
+    );
+  }
+
+  /*
+   * ========================================================
+   * CUSTOMER PANEL
+   * ========================================================
+   */
+
+  if (
+    pathname === "/dashboard" ||
+    pathname.startsWith(
+      "/dashboard/"
+    ) ||
+    pathname === "/profile" ||
+    pathname.startsWith(
+      "/profile/"
+    )
+  ) {
+    const role =
+      await getRole(request);
+
+    if (!role) {
+      return NextResponse.redirect(
+        new URL(
+          "/login",
+          request.url
+        )
+      );
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+  ],
 };

@@ -1,41 +1,171 @@
-// src/app/api/auth/register/route.ts
+// FILE: src/app/api/auth/register/route.ts
 
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+
 import { db } from "@/lib/db";
+import { createOtp } from "@/lib/otp";
+import { sendOtpEmail } from "@/lib/resend";
 
-export async function POST(req: Request) {
+export async function POST(
+  request: Request
+) {
   try {
-    const { name, email, password } = await req.json();
+    const body =
+      await request.json();
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
+    const username =
+      typeof body.username === "string"
+        ? body.username
+            .trim()
+            .toLowerCase()
+        : "";
 
-    // ইউজার কি ইতিমধ্যে সম্পূর্ণ রেজিস্টার্ড?
-    const existingUser = await db.user.findUnique({ where: { email } });
-    if (existingUser && existingUser.password) {
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
+
+    const email =
+      typeof body.email === "string"
+        ? body.email
+            .trim()
+            .toLowerCase()
+        : "";
+
+    const password =
+      typeof body.password === "string"
+        ? body.password
+        : "";
+
+    if (
+      !username ||
+      !name ||
+      !email ||
+      !password
+    ) {
       return NextResponse.json(
-        { error: "Account already exists. Please login." },
+        {
+          error:
+            "Username, name, email and password are required.",
+        },
         { status: 400 }
       );
     }
 
-    // ৬ ডিজিটের OTP তৈরি ও মেয়ার নির্ধারণ (১০ মিনিট)
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    if (
+      !/^[a-z0-9_]{3,30}$/.test(
+        username
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Username must be 3-30 characters and may contain only lowercase letters, numbers and underscores.",
+        },
+        { status: 400 }
+      );
+    }
 
-    // পুরাতন OTP ডিলিট করে নতুনটা সেভ করা
-    await db.otpVerification.deleteMany({ where: { email } });
-    await db.otpVerification.create({
-      data: { email, code: otpCode, expiresAt },
+    if (password.length < 8) {
+      return NextResponse.json(
+        {
+          error:
+            "Password must be at least 8 characters long.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Please provide a valid email address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingUser =
+      await db.user.findFirst({
+        where: {
+          OR: [
+            {
+              username,
+            },
+            {
+              email,
+            },
+          ],
+        },
+      });
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error:
+            existingUser.username ===
+            username
+              ? "Username already exists."
+              : "Email already exists.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const passwordHash =
+      await bcrypt.hash(
+        password,
+        12
+      );
+
+    const { code } =
+      await createOtp({
+        email,
+        username,
+        name,
+        passwordHash,
+        purpose:
+          "REGISTRATION",
+      });
+
+    /*
+     * Username is not stored in the
+     * current OTP model yet.
+     *
+     * We will add it in the next
+     * database refinement.
+     */
+
+    await sendOtpEmail(
+      email,
+      code,
+      "REGISTRATION"
+    );
+
+    return NextResponse.json({
+      success: true,
+      message:
+        "Verification code sent to your email.",
+      email,
     });
-
-    // TODO: ইমেইল পাঠানোর সার্ভিস (e.g. Resend/Nodemailer) দিয়ে otpCode পাঠাবেন
-    console.log(`[AUTH OTP] Email: ${email} | Code: ${otpCode}`);
-
-    return NextResponse.json({ success: true, message: "OTP sent to email" });
   } catch (error) {
-    console.error("Register Error:", error);
-    return NextResponse.json({ error: "Server Error" }, { status: 500 });
+    console.error(
+      "Registration error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Unable to start registration.",
+      },
+      { status: 500 }
+    );
   }
 }

@@ -1,95 +1,259 @@
-// src/app/api/auth/verify-otp/route.ts
+// FILE: src/app/api/auth/verify-otp/route.ts
 
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { SignJWT } from "jose";
-import bcrypt from "bcryptjs";
 
-export async function POST(req: Request) {
+import { db } from "@/lib/db";
+import { createSessionToken } from "@/lib/auth";
+import { verifyOtp } from "@/lib/otp";
+
+function setSessionCookie(
+  response: NextResponse,
+  token: string
+) {
+  response.cookies.set({
+    name: "myshop_session",
+    value: token,
+    httpOnly: true,
+    secure:
+      process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+}
+
+export async function POST(
+  request: Request
+) {
   try {
-    const { email, code, name, password } = await req.json();
+    const body =
+      await request.json();
+
+    const email =
+      typeof body.email === "string"
+        ? body.email
+            .trim()
+            .toLowerCase()
+        : "";
+
+    const code =
+      typeof body.code === "string"
+        ? body.code.trim()
+        : "";
+
+    const purpose =
+      body.purpose ===
+      "DEVELOPER_LOGIN"
+        ? "DEVELOPER_LOGIN"
+        : "REGISTRATION";
 
     if (!email || !code) {
       return NextResponse.json(
-        { error: "Email and OTP code are required" },
+        {
+          error:
+            "Email and OTP code are required.",
+        },
         { status: 400 }
       );
     }
 
-    // ১. OTP চেক করা
-    const validOtp = await db.otpVerification.findFirst({
-      where: { email, code },
-    });
-
-    if (!validOtp || validOtp.expiresAt < new Date()) {
+    if (!/^\d{6}$/.test(code)) {
       return NextResponse.json(
-        { error: "Invalid or expired OTP" },
+        {
+          error:
+            "OTP must contain exactly 6 digits.",
+        },
         { status: 400 }
       );
     }
 
-    // ২. ওটিপি ভেরিফাই হওয়ার সাথে সাথেই সবার আগে ডাটাবেজ থেকে রিমুভ করা যাতে ডাবল রিকোয়েস্ট ব্লক হয়
-    await db.otpVerification.deleteMany({ where: { email } });
+    /*
+     * ========================================================
+     * DEVELOPER OTP
+     * ========================================================
+     */
 
-    // ৩. `.env` থেকে মাস্টার ডেভ ইমেইল রিড করা
-    const masterDevEmail = process.env.MASTER_DEV_EMAIL;
-    const isMasterDev =
-      masterDevEmail && email.toLowerCase() === masterDevEmail.toLowerCase();
+    if (
+      purpose === "DEVELOPER_LOGIN"
+    ) {
+      const developerEmail =
+        process.env.MASTER_DEV_EMAIL
+          ?.trim()
+          .toLowerCase();
 
-    const assignedRole = isMasterDev ? "DEVELOPER" : "USER";
+      if (
+        !developerEmail ||
+        email !== developerEmail
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid developer verification request.",
+          },
+          { status: 403 }
+        );
+      }
 
-    // ৪. পাসওয়ার্ড দেওয়া থাকলে হ্যাশ করা
-    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
-
-    // ৫. ডাটাবেজে ইউজার ম্যানেজমেন্ট
-    let user = await db.user.findUnique({ where: { email } });
-
-    if (!user) {
-      user = await db.user.create({
-        data: {
+      const result =
+        await verifyOtp({
           email,
-          name: name || null,
-          password: hashedPassword || null,
-          role: assignedRole,
-        },
-      });
-    } else {
-      user = await db.user.update({
-        where: { email },
-        data: {
-          ...(name && { name }),
-          ...(hashedPassword && { password: hashedPassword }),
-          ...(isMasterDev && { role: "DEVELOPER" }),
-        },
-      });
+          code,
+          purpose:
+            "DEVELOPER_LOGIN",
+        });
+
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            error: result.error,
+          },
+          { status: 400 }
+        );
+      }
+
+      const developer =
+        await db.user.upsert({
+          where: {
+            email: developerEmail,
+          },
+          create: {
+            email: developerEmail,
+            name: "Developer",
+            role: "DEVELOPER",
+          },
+          update: {
+            role: "DEVELOPER",
+          },
+        });
+
+      const token =
+        await createSessionToken({
+          userId: developer.id,
+          email: developer.email,
+          role: "DEVELOPER",
+        });
+
+      const response =
+        NextResponse.json({
+          success: true,
+          message:
+            "Developer authentication successful.",
+          user: {
+            id: developer.id,
+            name: developer.name,
+            email: developer.email,
+            role: developer.role,
+          },
+        });
+
+      setSessionCookie(
+        response,
+        token
+      );
+
+      return response;
     }
 
-    // ৬. JWT Token তৈরি করা
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const token = await new SignJWT({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    })
-      .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("7d")
-      .sign(secret);
+    /*
+     * ========================================================
+     * CUSTOMER REGISTRATION OTP
+     * ========================================================
+     */
 
-    // ৭. কুকি সেট করা
-    const response = NextResponse.json({ success: true, user });
-    response.cookies.set("myshop_session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    const result =
+      await verifyOtp({
+        email,
+        code,
+        purpose: "REGISTRATION",
+      });
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: result.error,
+        },
+        { status: 400 }
+      );
+    }
+
+    const otpRecord =
+      result.record;
+
+    if (!otpRecord.passwordHash) {
+      return NextResponse.json(
+        {
+          error:
+            "Registration session is invalid.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingUser =
+      await db.user.findUnique({
+        where: {
+          email,
+        },
+      });
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error:
+            "An account with this email already exists.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const user =
+      await db.user.create({
+        data: {
+            username: otpRecord.username!,
+            email,
+            name: otpRecord.name,
+            password: otpRecord.passwordHash,
+            role: "USER",
+        },
+      });
+
+    const token =
+      await createSessionToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+
+    const response =
+      NextResponse.json({
+        success: true,
+        message:
+          "Account created successfully.",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+
+    setSessionCookie(
+      response,
+      token
+    );
 
     return response;
   } catch (error) {
-    console.error("OTP verification error:", error);
+    console.error(
+      "OTP verification error:",
+      error
+    );
+
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      {
+        error:
+          "Unable to verify OTP.",
+      },
       { status: 500 }
     );
   }
