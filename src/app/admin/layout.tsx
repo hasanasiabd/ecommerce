@@ -18,6 +18,8 @@ import {
   getDeveloperPanelPath,
 } from "@/lib/env";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AdminMobileNavigation } from "@/components/admin-mobile-navigation";
+
 
 export default async function AdminLayout({
   children,
@@ -47,6 +49,7 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
 
+        {/* Desktop Sidebar */}
         <aside className="hidden w-72 shrink-0 border-r border-border bg-card/80 p-5 lg:flex lg:flex-col">
           <div>
             <Link
@@ -147,7 +150,41 @@ export default async function AdminLayout({
           </div>
         </aside>
 
+        {/* Main Content */}
         <main className="min-w-0 flex-1">
+          {/* Mobile / Tablet Header */}
+          <div className="sticky top-0 z-40 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <AdminMobileNavigation
+                  adminPath={adminPath}
+                  developerPath={
+                    developerPath
+                  }
+                  isDeveloper={
+                    session.role ===
+                    "DEVELOPER"
+                  }
+                />
+
+                <Link
+                  href={adminPath}
+                  className="min-w-0"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                    MyShop
+                  </p>
+
+                  <p className="truncate text-sm font-bold">
+                    Admin Panel
+                  </p>
+                </Link>
+              </div>
+
+              <ThemeToggle />
+            </div>
+          </div>
+
           {children}
         </main>
       </div>

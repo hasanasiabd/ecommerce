@@ -12,6 +12,9 @@ import {
   ShoppingBag,
   Trash2,
 } from "lucide-react";
+import {
+  getFirstProductImage,
+} from "@/lib/product-images";
 
 type CartItem = {
   id: string;
@@ -25,20 +28,20 @@ type CartItem = {
   };
 };
 
-function getImage(value: string) {
-  try {
-    const parsed = JSON.parse(value);
+// function getImage(value: string) {
+//   try {
+//     const parsed = JSON.parse(value);
 
-    if (
-      Array.isArray(parsed) &&
-      typeof parsed[0] === "string"
-    ) {
-      return parsed[0];
-    }
-  } catch {}
+//     if (
+//       Array.isArray(parsed) &&
+//       typeof parsed[0] === "string"
+//     ) {
+//       return parsed[0];
+//     }
+//   } catch {}
 
-  return value || "/logo.svg";
-}
+//   return value || "/logo.svg";
+// }
 
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -292,7 +295,7 @@ export default function CartPage() {
                 >
                   <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-muted">
                     <Image
-                      src={getImage(
+                      src={getFirstProductImage(
                         item.product.images
                       )}
                       alt={item.product.title}
@@ -300,6 +303,16 @@ export default function CartPage() {
                       sizes="112px"
                       className="object-cover"
                     />
+
+                    {/* <Image
+                      src={getImage(
+                        item.product.images
+                      )}
+                      alt={item.product.title}
+                      fill
+                      sizes="112px"
+                      className="object-cover"
+                    /> */}
                   </div>
 
                   <div className="min-w-0 flex-1">

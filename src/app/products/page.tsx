@@ -11,6 +11,9 @@ import {
   SlidersHorizontal,
   Package,
 } from "lucide-react";
+import {
+  getFirstProductImage,
+} from "@/lib/product-images";
 
 type Product = {
   id: string;
@@ -35,35 +38,35 @@ type Category = {
   };
 };
 
-function getFirstImage(
-  images: string
-) {
-  try {
-    const parsed =
-      JSON.parse(images);
+// function getFirstImage(
+//   images: string
+// ) {
+//   try {
+//     const parsed =
+//       JSON.parse(images);
 
-    if (
-      Array.isArray(parsed) &&
-      parsed.length > 0 &&
-      typeof parsed[0] === "string" &&
-      parsed[0].trim()
-    ) {
-      return parsed[0];
-    }
-  } catch {
-    // Ignore invalid JSON
-  }
+//     if (
+//       Array.isArray(parsed) &&
+//       parsed.length > 0 &&
+//       typeof parsed[0] === "string" &&
+//       parsed[0].trim()
+//     ) {
+//       return parsed[0];
+//     }
+//   } catch {
+//     // Ignore invalid JSON
+//   }
 
-  if (
-    images &&
-    images !== "[]" &&
-    images.trim() !== ""
-  ) {
-    return images;
-  }
+//   if (
+//     images &&
+//     images !== "[]" &&
+//     images.trim() !== ""
+//   ) {
+//     return images;
+//   }
 
-  return "/logo.svg";
-}
+//   return "/logo.svg";
+// }
 
 export default function ProductsPage() {
   const [products, setProducts] =
@@ -323,7 +326,7 @@ export default function ProductsPage() {
                 >
                   <div className="relative h-60 overflow-hidden bg-muted">
                     <Image
-                      src={getFirstImage(
+                      src={getFirstProductImage(
                         product.images
                       )}
                       alt={product.title}
@@ -331,6 +334,16 @@ export default function ProductsPage() {
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover transition duration-500 group-hover:scale-105"
                     />
+                    
+                    {/* <Image
+                      src={getFirstImage(
+                        product.images
+                      )}
+                      alt={product.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                    /> */}
                   </div>
 
                   <div className="p-5">

@@ -9,17 +9,23 @@ import {
 } from "lucide-react";
 
 import { getSession } from "@/lib/auth";
-import { getAdminPanelPath, getDeveloperPanelPath } from "@/lib/env";
+import {
+  getAdminPanelPath,
+  getDeveloperPanelPath,
+} from "@/lib/env";
+
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoutButton } from "@/components/logout-button";
 import { CustomerNavigation } from "@/components/customer-navigation";
+import { CustomerMobileNavigation } from "@/components/customer-mobile-navigation";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  const session =
+    await getSession();
 
   if (!session) {
     return null;
@@ -32,17 +38,21 @@ export default async function DashboardLayout({
   const isDeveloper =
     session.role === "DEVELOPER";
 
-  const adminPath = isAdmin
-    ? getAdminPanelPath()
-    : null;
+  const adminPath =
+    isAdmin
+      ? getAdminPanelPath()
+      : null;
 
-  const developerPath = isDeveloper
-    ? getDeveloperPanelPath()
-    : null;
+  const developerPath =
+    isDeveloper
+      ? getDeveloperPanelPath()
+      : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
+
+        {/* Desktop Sidebar */}
         <aside className="hidden w-72 shrink-0 border-r border-border bg-card/80 p-5 lg:flex lg:flex-col">
           <div>
             <Link
@@ -109,53 +119,73 @@ export default async function DashboardLayout({
           </div>
         </aside>
 
+        {/* Main Content */}
         <main className="min-w-0 flex-1">
-          <div className="border-b border-border bg-card/80 px-4 py-4 backdrop-blur-xl lg:hidden">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
-                  MyShop
-                </p>
 
-                <h2 className="font-bold">
-                  Customer Panel
-                </h2>
+          {/* Mobile / Tablet Header */}
+          <div className="sticky top-0 z-40 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+
+              <div className="flex min-w-0 items-center gap-3">
+
+                <CustomerMobileNavigation
+                  adminPath={
+                    adminPath
+                  }
+                  developerPath={
+                    developerPath
+                  }
+                />
+
+                <Link
+                  href="/dashboard"
+                  className="min-w-0"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                    MyShop
+                  </p>
+
+                  <p className="truncate text-sm font-bold">
+                    Customer Panel
+                  </p>
+                </Link>
               </div>
 
-              <ThemeToggle />
-            </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <ThemeToggle />
 
-            <div className="mt-4">
-              <CustomerNavigation />
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {adminPath && (
-                <Link
-                  href={adminPath}
-                  className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-500"
+                <LogoutButton
+                  aria-label="Sign out"
+                  className="
+                    inline-flex h-10
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    border
+                    border-red-500/20
+                    bg-red-500/10
+                    px-3
+                    text-sm
+                    font-semibold
+                    text-red-500
+                    transition
+                    hover:bg-red-500/20
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
                 >
-                  Admin Panel
-                </Link>
-              )}
+                  <LogOut className="h-4 w-4" />
 
-              {developerPath && (
-                <Link
-                  href={developerPath}
-                  className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-500"
-                >
-                  Developer Panel
-                </Link>
-              )}
-
-              <LogoutButton
-                className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Logout
-              </LogoutButton>
+                  <span className="hidden sm:inline">
+                    Logout
+                  </span>
+                </LogoutButton>
+              </div>
             </div>
           </div>
 
+          {/* Page Content */}
           <div className="p-5 sm:p-8 lg:p-10">
             {children}
           </div>

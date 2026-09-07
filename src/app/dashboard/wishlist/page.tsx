@@ -10,6 +10,9 @@ import {
   Heart,
   Trash2,
 } from "lucide-react";
+import {
+  getFirstProductImage,
+} from "@/lib/product-images";
 
 type WishlistItem = {
   id: string;
@@ -26,19 +29,19 @@ type WishlistItem = {
   };
 };
 
-function getImage(value: string) {
-  try {
-    const parsed = JSON.parse(value);
-    if (
-      Array.isArray(parsed) &&
-      typeof parsed[0] === "string"
-    ) {
-      return parsed[0];
-    }
-  } catch {}
+// function getImage(value: string) {
+//   try {
+//     const parsed = JSON.parse(value);
+//     if (
+//       Array.isArray(parsed) &&
+//       typeof parsed[0] === "string"
+//     ) {
+//       return parsed[0];
+//     }
+//   } catch {}
 
-  return value || "/logo.svg";
-}
+//   return value || "/logo.svg";
+// }
 
 export default function WishlistPage() {
   const [items, setItems] =
@@ -185,12 +188,22 @@ export default function WishlistPage() {
                 className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-muted"
               >
                 <Image
-                  src={getImage(item.product.images)}
+                  src={getFirstProductImage(
+                    item.product.images
+                  )}
                   alt={item.product.title}
                   fill
                   sizes="112px"
                   className="object-cover"
                 />
+                
+                {/* <Image
+                  src={getImage(item.product.images)}
+                  alt={item.product.title}
+                  fill
+                  sizes="112px"
+                  className="object-cover"
+                /> */}
               </Link>
 
               <div className="min-w-0 flex-1">

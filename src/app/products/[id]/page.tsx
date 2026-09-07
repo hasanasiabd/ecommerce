@@ -13,6 +13,11 @@ import {
   ShoppingCart,
 } from "lucide-react";
 
+import {
+  parseProductImages,
+  PRODUCT_IMAGE_FALLBACK,
+} from "@/lib/product-images";
+
 type Product = {
   id: string;
   title: string;
@@ -25,28 +30,6 @@ type Product = {
     slug: string;
   };
 };
-
-function parseImages(
-  value: string
-) {
-  try {
-    const parsed =
-      JSON.parse(value);
-
-    if (Array.isArray(parsed)) {
-      return parsed.filter(
-        (item): item is string =>
-          typeof item === "string"
-      );
-    }
-  } catch {
-    // ignore
-  }
-
-  return value
-    ? [value]
-    : ["/logo.svg"];
-}
 
 export default function ProductDetailsPage({
   params,
@@ -123,8 +106,11 @@ export default function ProductDetailsPage({
     return (
       <main className="min-h-screen bg-background px-4 py-16">
         <div className="mx-auto max-w-7xl animate-pulse">
+          <div className="mb-8 h-10 w-44 rounded-2xl bg-muted" />
+
           <div className="grid gap-10 lg:grid-cols-2">
-            <div className="h-[500px] rounded-3xl bg-muted" />
+            <div className="aspect-square rounded-3xl bg-muted" />
+
             <div className="space-y-5">
               <div className="h-6 w-1/4 rounded bg-muted" />
               <div className="h-12 w-3/4 rounded bg-muted" />
@@ -153,7 +139,21 @@ export default function ProductDetailsPage({
 
           <Link
             href="/products"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white"
+            className="
+              mt-6
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              bg-indigo-600
+              px-4
+              py-3
+              text-sm
+              font-semibold
+              text-white
+              transition
+              hover:bg-indigo-500
+            "
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Products
@@ -164,27 +164,70 @@ export default function ProductDetailsPage({
   }
 
   const images =
-    parseImages(
+    parseProductImages(
       product.images
     );
 
   const currentImage =
     images[
       selectedImage
-    ] || images[0];
+    ] ||
+    images[0] ||
+    PRODUCT_IMAGE_FALLBACK;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Link
-          href="/products"
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Products
-        </Link>
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
 
-        <div className="grid gap-10 lg:grid-cols-2">
+        {/* =====================================================
+            PRODUCT NAVIGATION
+           ===================================================== */}
+
+        <div className="mb-6 sm:mb-8">
+          <Link
+            href="/products"
+            className="
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              border
+              border-border
+              bg-card
+              px-3.5
+              py-2.5
+              text-sm
+              font-medium
+              text-muted-foreground
+              shadow-sm
+              transition
+              hover:bg-accent
+              hover:text-foreground
+              active:scale-[0.98]
+            "
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+
+            <span className="sm:hidden">
+              Products
+            </span>
+
+            <span className="hidden sm:inline">
+              Back to Products
+            </span>
+          </Link>
+        </div>
+
+        {/* =====================================================
+            PRODUCT CONTENT
+           ===================================================== */}
+
+        <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
+
+          {/* ===================================================
+              PRODUCT IMAGES
+             =================================================== */}
+
           <div>
             <div className="relative aspect-square overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
               <Image
@@ -194,27 +237,42 @@ export default function ProductDetailsPage({
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover"
+                onError={(event) => {
+                  event.currentTarget.src =
+                    PRODUCT_IMAGE_FALLBACK;
+                }}
               />
             </div>
 
             {images.length > 1 && (
               <div className="mt-4 grid grid-cols-4 gap-3">
                 {images.map(
-                  (image, index) => (
+                  (
+                    image,
+                    index
+                  ) => (
                     <button
-                      key={image}
+                      key={`${image}-${index}`}
                       type="button"
                       onClick={() =>
                         setSelectedImage(
                           index
                         )
                       }
-                      className={`relative aspect-square overflow-hidden rounded-xl border ${
-                        selectedImage ===
-                        index
-                          ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                          : "border-border"
-                      }`}
+                      className={`
+                        relative
+                        aspect-square
+                        overflow-hidden
+                        rounded-xl
+                        border
+                        transition
+                        ${
+                          selectedImage ===
+                          index
+                            ? "border-indigo-500 ring-2 ring-indigo-500/20"
+                            : "border-border hover:border-indigo-500/50"
+                        }
+                      `}
                     >
                       <Image
                         src={image}
@@ -222,6 +280,12 @@ export default function ProductDetailsPage({
                         fill
                         sizes="120px"
                         className="object-cover"
+                        onError={(
+                          event
+                        ) => {
+                          event.currentTarget.src =
+                            PRODUCT_IMAGE_FALLBACK;
+                        }}
                       />
                     </button>
                   )
@@ -230,20 +294,24 @@ export default function ProductDetailsPage({
             )}
           </div>
 
+          {/* ===================================================
+              PRODUCT INFORMATION
+             =================================================== */}
+
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-indigo-500">
               {product.category.name}
             </p>
 
-            <h1 className="mt-3 text-4xl font-bold tracking-tight">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
               {product.title}
             </h1>
 
-            <p className="mt-5 text-3xl font-bold">
+            <p className="mt-5 text-3xl font-bold sm:text-4xl">
               ${product.price.toFixed(2)}
             </p>
 
-            <p className="mt-6 text-base leading-8 text-muted-foreground">
+            <p className="mt-5 text-base leading-7 text-muted-foreground sm:mt-6 sm:leading-8">
               {product.description}
             </p>
 
@@ -261,7 +329,11 @@ export default function ProductDetailsPage({
               </div>
             )}
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            {/* =================================================
+                PRODUCT ACTIONS
+               ================================================= */}
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
               <button
                 type="button"
                 disabled={
@@ -277,23 +349,29 @@ export default function ProductDetailsPage({
                       await fetch(
                         "/api/cart",
                         {
-                          method: "POST",
+                          method:
+                            "POST",
                           headers: {
                             "Content-Type":
                               "application/json",
                           },
-                          body: JSON.stringify({
-                            productId:
-                              product.id,
-                            quantity: 1,
-                          }),
+                          body: JSON.stringify(
+                            {
+                              productId:
+                                product.id,
+                              quantity: 1,
+                            }
+                          ),
                         }
                       );
 
                     const data =
                       await response.json();
 
-                    if (response.status === 401) {
+                    if (
+                      response.status ===
+                      401
+                    ) {
                       window.location.href =
                         "/login";
                       return;
@@ -319,9 +397,26 @@ export default function ProductDetailsPage({
                     setCartLoading(false);
                   }
                 }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-2xl
+                  bg-indigo-600
+                  px-5
+                  py-4
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-indigo-500
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
               >
                 <ShoppingCart className="h-4 w-4" />
+
                 {cartLoading
                   ? "Adding..."
                   : "Add to Cart"}
@@ -329,15 +424,35 @@ export default function ProductDetailsPage({
 
               <button
                 type="button"
-                disabled={product.stock <= 0}
-                className="flex-1 rounded-2xl border border-border bg-card px-5 py-4 text-sm font-semibold transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={
+                  product.stock <= 0
+                }
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  border
+                  border-border
+                  bg-card
+                  px-5
+                  py-4
+                  text-sm
+                  font-semibold
+                  transition
+                  hover:bg-accent
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
               >
                 Buy Now
               </button>
 
               <button
                 type="button"
-                disabled={wishlistLoading}
+                disabled={
+                  wishlistLoading
+                }
                 onClick={async () => {
                   setWishlistLoading(true);
                   setActionMessage("");
@@ -347,22 +462,28 @@ export default function ProductDetailsPage({
                       await fetch(
                         "/api/wishlist",
                         {
-                          method: "POST",
+                          method:
+                            "POST",
                           headers: {
                             "Content-Type":
                               "application/json",
                           },
-                          body: JSON.stringify({
-                            productId:
-                              product.id,
-                          }),
+                          body: JSON.stringify(
+                            {
+                              productId:
+                                product.id,
+                            }
+                          ),
                         }
                       );
 
                     const data =
                       await response.json();
 
-                    if (response.status === 401) {
+                    if (
+                      response.status ===
+                      401
+                    ) {
                       window.location.href =
                         "/login";
                       return;
@@ -388,13 +509,33 @@ export default function ProductDetailsPage({
                     setWishlistLoading(false);
                   }
                 }}
-                className="inline-flex items-center justify-center rounded-2xl border border-border bg-card px-5 py-4 text-sm font-semibold transition hover:bg-accent disabled:opacity-50"
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  border
+                  border-border
+                  bg-card
+                  px-5
+                  py-4
+                  text-sm
+                  font-semibold
+                  transition
+                  hover:bg-accent
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
                 aria-label="Add to wishlist"
                 title="Add to wishlist"
               >
                 <Heart className="h-5 w-5" />
               </button>
             </div>
+
+            {/* =================================================
+                SECURITY INFO
+               ================================================= */}
 
             <div className="mt-8 rounded-2xl border border-border bg-card p-5">
               <p className="text-sm font-semibold">

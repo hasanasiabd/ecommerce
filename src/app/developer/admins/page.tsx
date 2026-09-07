@@ -2,19 +2,31 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
 import {
-  KeyRound,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  ArrowLeft,
+  Code2,
+  LayoutDashboard,
+  Menu,
   Plus,
-  RefreshCw,
+  RefreshCcw,
   Search,
   ShieldCheck,
-  Trash2,
   UserCheck,
+  UserRound,
   UserX,
+  Trash2,
+  KeyRound,
   X,
 } from "lucide-react";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 
 type Admin = {
   id: string;
@@ -26,14 +38,14 @@ type Admin = {
   createdAt: string;
 };
 
-type CreateForm = {
+type FormState = {
   username: string;
   name: string;
   email: string;
   password: string;
 };
 
-const INITIAL_FORM: CreateForm = {
+const emptyForm: FormState = {
   username: "",
   name: "",
   email: "",
@@ -41,8 +53,8 @@ const INITIAL_FORM: CreateForm = {
 };
 
 export default function AdminManagementPage() {
-  const { resolvedTheme, setTheme } =
-    useTheme();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [admins, setAdmins] =
     useState<Admin[]>([]);
@@ -53,7 +65,7 @@ export default function AdminManagementPage() {
   const [loading, setLoading] =
     useState(true);
 
-  const [creating, setCreating] =
+  const [submitting, setSubmitting] =
     useState(false);
 
   const [error, setError] =
@@ -65,16 +77,58 @@ export default function AdminManagementPage() {
   const [showCreate, setShowCreate] =
     useState(false);
 
+  const [mobileNavOpen, setMobileNavOpen] =
+    useState(false);
+
   const [form, setForm] =
-    useState<CreateForm>(
-      INITIAL_FORM
+    useState<FormState>(
+      emptyForm
     );
 
   const [resetId, setResetId] =
     useState<string | null>(null);
 
-  const [newPassword, setNewPassword] =
+  const [resetPassword, setResetPassword] =
     useState("");
+
+  /*
+   * IMPORTANT:
+   *
+   * The browser uses the environment-defined
+   * Developer Panel path.
+   *
+   * Example:
+   *
+   * /as1dev/admins
+   *      ↓
+   * /as1dev
+   *
+   * We intentionally do NOT hard-code
+   * "/developer" here.
+   */
+  const developerPath = useMemo(() => {
+    const currentPath =
+      pathname || "";
+
+    const adminPageSuffix =
+      "/admins";
+
+    if (
+      currentPath.endsWith(
+        adminPageSuffix
+      )
+    ) {
+      const basePath =
+        currentPath.slice(
+          0,
+          -adminPageSuffix.length
+        );
+
+      return basePath || "/";
+    }
+
+    return currentPath || "/";
+  }, [pathname]);
 
   async function loadAdmins() {
     try {
@@ -85,7 +139,6 @@ export default function AdminManagementPage() {
         await fetch(
           "/api/developer/admins",
           {
-            method: "GET",
             cache: "no-store",
           }
         );
@@ -96,20 +149,18 @@ export default function AdminManagementPage() {
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to load administrators."
+            "Unable to load admins."
         );
       }
 
       setAdmins(
-        Array.isArray(data.admins)
-          ? data.admins
-          : []
+        data.admins || []
       );
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "Unable to load administrators."
+          : "Unable to load admins."
       );
     } finally {
       setLoading(false);
@@ -120,10 +171,60 @@ export default function AdminManagementPage() {
     loadAdmins();
   }, []);
 
+  /*
+   * Close the mobile drawer whenever
+   * the route changes.
+   */
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  /*
+   * Prevent background scrolling while
+   * the mobile drawer is open.
+   */
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      document.body.style.overflow =
+        "";
+      return;
+    }
+
+    document.body.style.overflow =
+      "hidden";
+
+    function handleKeyDown(
+      event: KeyboardEvent
+    ) {
+      if (
+        event.key === "Escape"
+      ) {
+        setMobileNavOpen(false);
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () => {
+      document.body.style.overflow =
+        "";
+
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, [mobileNavOpen]);
+
   const filteredAdmins =
     useMemo(() => {
       const query =
-        search.trim().toLowerCase();
+        search
+          .trim()
+          .toLowerCase();
 
       if (!query) {
         return admins;
@@ -141,17 +242,18 @@ export default function AdminManagementPage() {
             ?.toLowerCase()
             .includes(query)
       );
-    }, [admins, search]);
+    }, [
+      admins,
+      search,
+    ]);
 
   async function createAdmin(
     event: React.FormEvent
   ) {
     event.preventDefault();
 
-    if (creating) return;
-
     try {
-      setCreating(true);
+      setSubmitting(true);
       setError("");
       setSuccess("");
 
@@ -176,7 +278,7 @@ export default function AdminManagementPage() {
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to create administrator."
+            "Unable to create admin."
         );
       }
 
@@ -184,10 +286,7 @@ export default function AdminManagementPage() {
         "Administrator created successfully."
       );
 
-      setForm(
-        INITIAL_FORM
-      );
-
+      setForm(emptyForm);
       setShowCreate(false);
 
       await loadAdmins();
@@ -195,14 +294,14 @@ export default function AdminManagementPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "Unable to create administrator."
+          : "Unable to create admin."
       );
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   }
 
-  async function changeStatus(
+  async function updateAdmin(
     id: string,
     action:
       | "activate"
@@ -233,7 +332,7 @@ export default function AdminManagementPage() {
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to update administrator."
+            "Unable to update admin."
         );
       }
 
@@ -247,7 +346,7 @@ export default function AdminManagementPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "Unable to update administrator."
+          : "Unable to update admin."
       );
     }
   }
@@ -257,10 +356,12 @@ export default function AdminManagementPage() {
   ) {
     const confirmed =
       window.confirm(
-        "Delete this administrator permanently?"
+        "Are you sure you want to permanently delete this administrator?"
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setError("");
@@ -280,12 +381,12 @@ export default function AdminManagementPage() {
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to delete administrator."
+            "Unable to delete admin."
         );
       }
 
       setSuccess(
-        "Administrator deleted successfully."
+        "Administrator deleted."
       );
 
       await loadAdmins();
@@ -293,21 +394,20 @@ export default function AdminManagementPage() {
       setError(
         error instanceof Error
           ? error.message
-          : "Unable to delete administrator."
+          : "Unable to delete admin."
       );
     }
   }
 
-  async function resetPassword(
+  async function resetAdminPassword(
     id: string
   ) {
     if (
-      newPassword.length < 8
+      resetPassword.length < 8
     ) {
       setError(
-        "Password must be at least 8 characters long."
+        "New password must be at least 8 characters."
       );
-
       return;
     }
 
@@ -328,7 +428,7 @@ export default function AdminManagementPage() {
               action:
                 "reset-password",
               password:
-                newPassword,
+                resetPassword,
             }),
           }
         );
@@ -348,7 +448,7 @@ export default function AdminManagementPage() {
       );
 
       setResetId(null);
-      setNewPassword("");
+      setResetPassword("");
 
       await loadAdmins();
     } catch (error) {
@@ -360,150 +460,565 @@ export default function AdminManagementPage() {
     }
   }
 
-  const dark =
-    resolvedTheme === "dark";
+  function goToDeveloper() {
+    setMobileNavOpen(false);
+
+    router.push(
+      developerPath
+    );
+  }
+
+  function goToAdminPanel() {
+    setMobileNavOpen(false);
+
+    router.push("/admin");
+  }
+
+  function goToCustomerPanel() {
+    setMobileNavOpen(false);
+
+    router.push("/dashboard");
+  }
+
+  function goToStoreHome() {
+    setMobileNavOpen(false);
+
+    router.push("/");
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
+      {/* =====================================================
+          MOBILE HEADER
+         ===================================================== */}
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
-                Developer Console
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur lg:hidden">
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                setMobileNavOpen(
+                  true
+                )
+              }
+              aria-label="Open developer navigation"
+              aria-expanded={
+                mobileNavOpen
+              }
+              className="
+                inline-flex
+                h-10 w-10
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                border border-border
+                bg-card
+                transition
+                hover:bg-accent
+              "
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                MyShop
               </p>
 
-              <h1 className="text-xl font-bold">
-                Administrator Management
-              </h1>
+              <p className="truncate text-sm font-bold">
+                Developer Panel
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={
+              goToDeveloper
+            }
+            className="
+              inline-flex
+              shrink-0
+              items-center
+              gap-2
+              rounded-xl
+              border
+              border-border
+              bg-card
+              px-3
+              py-2
+              text-xs
+              font-medium
+              text-muted-foreground
+              transition
+              hover:bg-accent
+              hover:text-foreground
+            "
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back
+          </button>
+        </div>
+      </header>
+
+      {/* =====================================================
+          MOBILE DRAWER
+         ===================================================== */}
+
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          {/* Overlay */}
+          <button
+            type="button"
+            aria-label="Close developer navigation"
+            onClick={() =>
+              setMobileNavOpen(
+                false
+              )
+            }
+            className="
+              absolute
+              inset-0
+              bg-black/60
+              backdrop-blur-sm
+            "
+          />
+
+          {/* Drawer */}
+          <aside
+            className="
+              relative
+              z-10
+              flex
+              h-full
+              w-[min(86vw,340px)]
+              flex-col
+              border-r
+              border-border
+              bg-card
+              shadow-2xl
+              animate-in
+              slide-in-from-left
+              duration-300
+            "
+          >
+            {/* Drawer Header */}
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                  <Code2 className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                    MyShop
+                  </p>
+
+                  <p className="text-sm font-bold">
+                    Developer Panel
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMobileNavOpen(
+                    false
+                  )
+                }
+                aria-label="Close developer navigation"
+                className="
+                  inline-flex
+                  h-10 w-10
+                  items-center
+                  justify-center
+                  rounded-xl
+                  border
+                  border-border
+                  bg-background
+                  transition
+                  hover:bg-accent
+                "
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Drawer Navigation */}
+            <nav className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={
+                    goToDeveloper
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    bg-indigo-500/10
+                    px-4
+                    py-3.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-indigo-500
+                    transition
+                    hover:bg-indigo-500/15
+                  "
+                >
+                  <Code2 className="h-5 w-5 shrink-0" />
+
+                  <span>
+                    Developer Panel
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileNavOpen(
+                      false
+                    )
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    bg-accent
+                    px-4
+                    py-3.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-foreground
+                  "
+                >
+                  <ShieldCheck className="h-5 w-5 shrink-0" />
+
+                  <span>
+                    Administrators
+                  </span>
+                </button>
+
+                <div className="my-4 border-t border-border" />
+
+                <button
+                  type="button"
+                  onClick={
+                    goToAdminPanel
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    px-4
+                    py-3.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-muted-foreground
+                    transition
+                    hover:bg-accent
+                    hover:text-foreground
+                  "
+                >
+                  <LayoutDashboard className="h-5 w-5 shrink-0" />
+
+                  <span>
+                    Admin Panel
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    goToCustomerPanel
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    px-4
+                    py-3.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-muted-foreground
+                    transition
+                    hover:bg-accent
+                    hover:text-foreground
+                  "
+                >
+                  <UserRound className="h-5 w-5 shrink-0" />
+
+                  <span>
+                    Customer Panel
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    goToStoreHome
+                  }
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    px-4
+                    py-3.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-muted-foreground
+                    transition
+                    hover:bg-accent
+                    hover:text-foreground
+                  "
+                >
+                  <LayoutDashboard className="h-5 w-5 shrink-0" />
+
+                  <span>
+                    Store Home
+                  </span>
+                </button>
+              </div>
+            </nav>
+
+            {/* Drawer Footer */}
+            <div className="shrink-0 border-t border-border p-4">
+              <button
+                type="button"
+                onClick={
+                  goToDeveloper
+                }
+                className="
+                  flex
+                  w-full
+                  items-center
+                  gap-3
+                  rounded-2xl
+                  border
+                  border-border
+                  bg-background
+                  px-4
+                  py-3
+                  text-sm
+                  font-medium
+                  transition
+                  hover:bg-accent
+                "
+              >
+                <ArrowLeft className="h-4 w-4" />
+
+                Back to Developer Panel
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* =====================================================
+          MAIN CONTENT
+         ===================================================== */}
+
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* Page Header */}
+        <div className="mb-8 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          {/* Desktop Back Button */}
+          <div className="mb-5 hidden lg:block">
+            <button
+              type="button"
+              onClick={
+                goToDeveloper
+              }
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-xl
+                border
+                border-border
+                bg-background
+                px-3.5
+                py-2
+                text-sm
+                font-medium
+                text-muted-foreground
+                transition
+                hover:bg-accent
+                hover:text-foreground
+              "
+            >
+              <ArrowLeft className="h-4 w-4" />
+
+              Developer Panel
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
+                <ShieldCheck className="h-4 w-4" />
+
+                Developer Control
+              </div>
+
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Administrator Management
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Create and manage administrator
+                accounts for MyShop.
+              </p>
+            </div>
+
             <button
               type="button"
               onClick={() =>
-                setTheme(
-                  dark
-                    ? "light"
-                    : "dark"
+                setShowCreate(
+                  true
                 )
               }
-              className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-accent"
-            >
-              {dark
-                ? "☀️ Light"
-                : "🌙 Dark"}
-            </button>
-
-            <button
-              type="button"
-              onClick={loadAdmins}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-accent disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${
-                  loading
-                    ? "animate-spin"
-                    : ""
-                }`}
-              />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowCreate(true)
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+              className="
+                inline-flex
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-2xl
+                bg-indigo-600
+                px-5
+                py-3
+                text-sm
+                font-semibold
+                text-white
+                shadow-lg
+                shadow-indigo-600/20
+                transition
+                hover:bg-indigo-500
+                sm:w-auto
+              "
             >
               <Plus className="h-4 w-4" />
+
               Create Admin
             </button>
           </div>
         </div>
-      </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <StatCard
-            title="Total Admins"
-            value={admins.length}
-          />
-
-          <StatCard
-            title="Active"
-            value={
-              admins.filter(
-                (admin) =>
-                  admin.isActive
-              ).length
-            }
-          />
-
-          <StatCard
-            title="Disabled"
-            value={
-              admins.filter(
-                (admin) =>
-                  !admin.isActive
-              ).length
-            }
-          />
-        </div>
-
+        {/* Error */}
         {error && (
-          <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+          <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
             {error}
           </div>
         )}
 
+        {/* Success */}
         {success && (
-          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-500">
+          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-500">
             {success}
           </div>
         )}
 
-        <div className="mb-5">
-          <div className="relative">
+        {/* Search / Refresh */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+          <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
             <input
+              type="search"
               value={search}
               onChange={(event) =>
                 setSearch(
                   event.target.value
                 )
               }
-              placeholder="Search by name, username or email..."
-              className="w-full rounded-2xl border border-border bg-card px-11 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="Search administrators..."
+              className="
+                w-full
+                rounded-2xl
+                border
+                border-border
+                bg-card
+                py-3
+                pl-11
+                pr-4
+                text-sm
+                outline-none
+                transition
+                focus:border-indigo-500
+                focus:ring-2
+                focus:ring-indigo-500/20
+              "
             />
           </div>
+
+          <button
+            type="button"
+            onClick={
+              loadAdmins
+            }
+            className="
+              inline-flex
+              items-center
+              justify-center
+              gap-2
+              rounded-2xl
+              border
+              border-border
+              bg-card
+              px-4
+              py-3
+              text-sm
+              font-medium
+              transition
+              hover:bg-accent
+            "
+          >
+            <RefreshCcw className="h-4 w-4" />
+
+            Refresh
+          </button>
         </div>
 
+        {/* Administrator List */}
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
           {loading ? (
-            <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-              Loading administrators...
+            <div className="flex min-h-64 items-center justify-center">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <RefreshCcw className="h-4 w-4 animate-spin" />
+
+                Loading administrators...
+              </div>
             </div>
           ) : filteredAdmins.length ===
             0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
               <ShieldCheck className="mb-4 h-10 w-10 text-muted-foreground" />
 
-              <h2 className="text-lg font-semibold">
+              <h3 className="font-semibold">
                 No administrators found
-              </h2>
+              </h3>
 
-              <p className="mt-2 text-sm text-muted-foreground">
-                Create an administrator account to
-                get started.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Create your first administrator
+                account from the button above.
               </p>
             </div>
           ) : (
@@ -512,17 +1027,22 @@ export default function AdminManagementPage() {
                 (admin) => (
                   <div
                     key={admin.id}
-                    className="p-5 transition hover:bg-accent/40"
+                    className="
+                      p-4
+                      transition
+                      hover:bg-accent/40
+                      sm:p-5
+                    "
                   >
                     <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                      <div className="flex min-w-0 items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
                           <ShieldCheck className="h-5 w-5" />
                         </div>
 
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-semibold">
+                            <h3 className="truncate font-semibold">
                               {admin.name ||
                                 admin.username ||
                                 "Administrator"}
@@ -541,8 +1061,9 @@ export default function AdminManagementPage() {
                             </span>
                           </div>
 
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            @{admin.username ||
+                          <p className="mt-1 truncate text-sm text-muted-foreground">
+                            @
+                            {admin.username ||
                               "unknown"}
                           </p>
 
@@ -557,28 +1078,58 @@ export default function AdminManagementPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              changeStatus(
+                              updateAdmin(
                                 admin.id,
                                 "disable"
                               )
                             }
-                            className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium transition hover:bg-accent"
+                            className="
+                              inline-flex
+                              items-center
+                              gap-2
+                              rounded-xl
+                              border
+                              border-border
+                              px-3
+                              py-2
+                              text-sm
+                              font-medium
+                              transition
+                              hover:bg-accent
+                            "
                           >
                             <UserX className="h-4 w-4" />
+
                             Disable
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() =>
-                              changeStatus(
+                              updateAdmin(
                                 admin.id,
                                 "activate"
                               )
                             }
-                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-500 transition hover:bg-emerald-500/20"
+                            className="
+                              inline-flex
+                              items-center
+                              gap-2
+                              rounded-xl
+                              border
+                              border-emerald-500/20
+                              bg-emerald-500/10
+                              px-3
+                              py-2
+                              text-sm
+                              font-medium
+                              text-emerald-500
+                              transition
+                              hover:bg-emerald-500/20
+                            "
                           >
                             <UserCheck className="h-4 w-4" />
+
                             Activate
                           </button>
                         )}
@@ -593,9 +1144,23 @@ export default function AdminManagementPage() {
                                 : admin.id
                             )
                           }
-                          className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium transition hover:bg-accent"
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-xl
+                            border
+                            border-border
+                            px-3
+                            py-2
+                            text-sm
+                            font-medium
+                            transition
+                            hover:bg-accent
+                          "
                         >
                           <KeyRound className="h-4 w-4" />
+
                           Reset Password
                         </button>
 
@@ -606,14 +1171,31 @@ export default function AdminManagementPage() {
                               admin.id
                             )
                           }
-                          className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-500/20"
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-xl
+                            border
+                            border-red-500/20
+                            bg-red-500/10
+                            px-3
+                            py-2
+                            text-sm
+                            font-medium
+                            text-red-500
+                            transition
+                            hover:bg-red-500/20
+                          "
                         >
                           <Trash2 className="h-4 w-4" />
+
                           Delete
                         </button>
                       </div>
                     </div>
 
+                    {/* Reset Password */}
                     {resetId ===
                       admin.id && (
                       <div className="mt-5 rounded-2xl border border-border bg-background p-4">
@@ -621,30 +1203,51 @@ export default function AdminManagementPage() {
                           <input
                             type="password"
                             value={
-                              newPassword
+                              resetPassword
                             }
                             onChange={(
                               event
                             ) =>
-                              setNewPassword(
+                              setResetPassword(
                                 event.target
                                   .value
                               )
                             }
                             placeholder="New password"
-                            className="flex-1 rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                            className="
+                              flex-1
+                              rounded-xl
+                              border
+                              border-border
+                              bg-card
+                              px-4
+                              py-3
+                              text-sm
+                              outline-none
+                              focus:border-indigo-500
+                            "
                           />
 
                           <button
                             type="button"
                             onClick={() =>
-                              resetPassword(
+                              resetAdminPassword(
                                 admin.id
                               )
                             }
-                            className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+                            className="
+                              rounded-xl
+                              bg-indigo-600
+                              px-4
+                              py-3
+                              text-sm
+                              font-semibold
+                              text-white
+                              transition
+                              hover:bg-indigo-500
+                            "
                           >
-                            Save
+                            Save Password
                           </button>
 
                           <button
@@ -653,11 +1256,21 @@ export default function AdminManagementPage() {
                               setResetId(
                                 null
                               );
-                              setNewPassword(
+                              setResetPassword(
                                 ""
                               );
                             }}
-                            className="rounded-xl border border-border px-4 py-3 text-sm font-medium hover:bg-accent"
+                            className="
+                              rounded-xl
+                              border
+                              border-border
+                              px-4
+                              py-3
+                              text-sm
+                              font-medium
+                              transition
+                              hover:bg-accent
+                            "
                           >
                             Cancel
                           </button>
@@ -672,33 +1285,84 @@ export default function AdminManagementPage() {
         </div>
       </div>
 
+      {/* =====================================================
+          CREATE ADMIN MODAL
+         ===================================================== */}
+
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl">
+        <div
+          className="
+            fixed
+            inset-0
+            z-50
+            flex
+            items-end
+            justify-center
+            bg-black/60
+            px-3
+            py-3
+            backdrop-blur-sm
+            sm:items-center
+            sm:px-4
+            sm:py-6
+          "
+        >
+          <div
+            className="
+              max-h-[92vh]
+              w-full
+              max-w-lg
+              overflow-y-auto
+              rounded-3xl
+              border
+              border-border
+              bg-card
+              p-5
+              shadow-2xl
+              sm:max-h-[90vh]
+              sm:p-6
+            "
+          >
             <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold">
                   Create Administrator
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Create a dedicated admin account.
+                  Give this person their own admin
+                  credentials.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowCreate(false)
+                  setShowCreate(
+                    false
+                  )
                 }
-                className="rounded-xl p-2 transition hover:bg-accent"
+                aria-label="Close create administrator form"
+                className="
+                  inline-flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  transition
+                  hover:bg-accent
+                "
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form
-              onSubmit={createAdmin}
+              onSubmit={
+                createAdmin
+              }
               className="space-y-4"
             >
               <input
@@ -712,22 +1376,45 @@ export default function AdminManagementPage() {
                   })
                 }
                 placeholder="Full name"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-border
+                  bg-background
+                  px-4
+                  py-3
+                  text-sm
+                  outline-none
+                  focus:border-indigo-500
+                "
               />
 
               <input
                 required
-                value={form.username}
+                value={
+                  form.username
+                }
                 onChange={(event) =>
                   setForm({
                     ...form,
                     username:
-                      event.target.value
-                        .toLowerCase(),
+                      event.target.value,
                   })
                 }
                 placeholder="username"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-border
+                  bg-background
+                  px-4
+                  py-3
+                  text-sm
+                  outline-none
+                  focus:border-indigo-500
+                "
               />
 
               <input
@@ -738,19 +1425,31 @@ export default function AdminManagementPage() {
                   setForm({
                     ...form,
                     email:
-                      event.target.value
-                        .toLowerCase(),
+                      event.target.value,
                   })
                 }
                 placeholder="admin@example.com"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-border
+                  bg-background
+                  px-4
+                  py-3
+                  text-sm
+                  outline-none
+                  focus:border-indigo-500
+                "
               />
 
               <input
                 required
                 type="password"
                 minLength={8}
-                value={form.password}
+                value={
+                  form.password
+                }
                 onChange={(event) =>
                   setForm({
                     ...form,
@@ -758,27 +1457,69 @@ export default function AdminManagementPage() {
                       event.target.value,
                   })
                 }
-                placeholder="Password"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                placeholder="Password (minimum 8 characters)"
+                className="
+                  w-full
+                  rounded-xl
+                  border
+                  border-border
+                  bg-background
+                  px-4
+                  py-3
+                  text-sm
+                  outline-none
+                  focus:border-indigo-500
+                "
               />
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowCreate(false)
-                  }
-                  className="flex-1 rounded-xl border border-border px-4 py-3 text-sm font-medium hover:bg-accent"
+                  onClick={() => {
+                    setShowCreate(
+                      false
+                    );
+                    setForm(
+                      emptyForm
+                    );
+                  }}
+                  className="
+                    flex-1
+                    rounded-xl
+                    border
+                    border-border
+                    px-4
+                    py-3
+                    text-sm
+                    font-medium
+                    transition
+                    hover:bg-accent
+                  "
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  disabled={creating}
-                  className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  disabled={
+                    submitting
+                  }
+                  className="
+                    flex-1
+                    rounded-xl
+                    bg-indigo-600
+                    px-4
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-indigo-500
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
                 >
-                  {creating
+                  {submitting
                     ? "Creating..."
                     : "Create Admin"}
                 </button>
@@ -788,25 +1529,5 @@ export default function AdminManagementPage() {
         </div>
       )}
     </main>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <p className="text-sm text-muted-foreground">
-        {title}
-      </p>
-
-      <p className="mt-2 text-3xl font-bold">
-        {value}
-      </p>
-    </div>
   );
 }
