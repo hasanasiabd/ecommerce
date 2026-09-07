@@ -1,3 +1,5 @@
+// FILE: src/components/logout-button.tsx
+
 "use client";
 
 import { useState, type ReactNode } from "react";
@@ -8,20 +10,21 @@ type LogoutButtonProps = {
   className?: string;
 };
 
+type LogoutResponse = {
+  success?: boolean;
+  message?: string;
+  redirectPath?: string;
+};
+
 export function LogoutButton({
   children,
   className = "",
 }: LogoutButtonProps) {
   const router = useRouter();
 
-  const [loggingOut, setLoggingOut] =
-    useState(false);
-
-  const [showMessage, setShowMessage] =
-    useState(false);
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -30,32 +33,35 @@ export function LogoutButton({
     setErrorMessage("");
 
     try {
-      const response =
-        await fetch(
-          "/api/auth/logout",
-          {
-            method: "POST",
-          }
-        );
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
 
-      const data =
-        await response.json();
+      const data = (await response.json()) as LogoutResponse;
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Unable to logout."
+          data.message || "Unable to logout."
         );
       }
 
       setShowMessage(true);
 
+      const redirectPath =
+        typeof data.redirectPath === "string" &&
+        data.redirectPath.startsWith("/") &&
+        !data.redirectPath.startsWith("//")
+          ? data.redirectPath
+          : "/login";
+
       window.setTimeout(() => {
-        router.replace("/login");
-      }, 1000);
+        router.replace(redirectPath);
+        router.refresh();
+      }, 900);
     } catch (error) {
       setLoggingOut(false);
 
@@ -76,9 +82,7 @@ export function LogoutButton({
         aria-busy={loggingOut}
         className={className}
       >
-        {loggingOut
-          ? "Signing out..."
-          : children}
+        {loggingOut ? "Signing out..." : children}
       </button>
 
       {showMessage && (

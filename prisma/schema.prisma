@@ -9,16 +9,17 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  username      String?  @unique
-  email         String   @unique
-  name          String?
-  password      String?
-  role          Role     @default(USER)
-  isWhitelisted Boolean  @default(false)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(cuid())
+  username          String?  @unique
+  email             String   @unique
+  name              String?
+  password          String?
+  role              Role     @default(USER)
+  isWhitelisted     Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  checkoutLockUntil DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   orders        Order[]
   cartItems     CartItem[]
@@ -50,19 +51,19 @@ model Category {
 }
 
 model Product {
-  id          String         @id @default(cuid())
-  title       String
-  description String         @db.Text
-  price       Float
-  stock       Int            @default(0)
-  images      String         @db.Text
-  categoryId  String
-  category    Category       @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  title         String
+  description   String         @db.Text
+  price         Float
+  stock         Int            @default(0)
+  images        String         @db.Text
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
   wishlistItems WishlistItem[]
 
   @@index([categoryId])
@@ -101,17 +102,22 @@ model WishlistItem {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id])
-  totalAmount     Float
-  status          String      @default("PENDING")
-  stripePaymentId String?
-  createdAt       DateTime    @default(now())
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id])
+  totalAmount      Float
+  status           String      @default("PENDING")
+  paymentStatus    String      @default("UNPAID")
+  shippingAddress  String?     @db.Text
+  stripeSessionId  String?     @unique
+  stripePaymentId  String?
+  createdAt        DateTime    @default(now())
 
-  items           OrderItem[]
+  items            OrderItem[]
 
   @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
 }
 
 model OrderItem {

@@ -82,6 +82,8 @@ export async function POST(
     const buffer =
       Buffer.from(bytes);
 
+    await cloudinary.api.ping();
+
     const result =
       await new Promise<{
         secure_url: string;
@@ -139,12 +141,40 @@ export async function POST(
       error
     );
 
+    const cloudinaryError =
+      error as {
+        message?: string;
+        http_code?: number;
+        name?: string;
+        error?: {
+          message?: string;
+        };
+      };
+
     return NextResponse.json(
       {
+        success: false,
         error:
+          cloudinaryError.error?.message ||
+          cloudinaryError.message ||
           "Unable to upload image.",
+
+        details: {
+          name:
+            cloudinaryError.name ||
+            null,
+
+          httpCode:
+            cloudinaryError.http_code ||
+            null,
+        },
       },
-      { status: 500 }
+      {
+        status:
+          cloudinaryError.http_code === 403
+            ? 403
+            : 500,
+      }
     );
   }
 }

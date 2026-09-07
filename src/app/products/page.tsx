@@ -39,19 +39,30 @@ function getFirstImage(
   images: string
 ) {
   try {
-    const parsed = JSON.parse(images);
+    const parsed =
+      JSON.parse(images);
 
     if (
       Array.isArray(parsed) &&
-      parsed.length > 0
+      parsed.length > 0 &&
+      typeof parsed[0] === "string" &&
+      parsed[0].trim()
     ) {
       return parsed[0];
     }
   } catch {
-    // ignore
+    // Ignore invalid JSON
   }
 
-  return images || "/logo.svg";
+  if (
+    images &&
+    images !== "[]" &&
+    images.trim() !== ""
+  ) {
+    return images;
+  }
+
+  return "/logo.svg";
 }
 
 export default function ProductsPage() {
