@@ -11,6 +11,8 @@ import {
   PackageSearch,
   ShoppingCart,
   UserRound,
+  Settings,
+  Users,
 } from "lucide-react";
 
 import {
@@ -64,9 +66,24 @@ export function AdminMobileNavigation({
       icon: Boxes,
     },
     {
+      href: `${adminPath}/inventory`,
+      label: "Inventory",
+      icon: Boxes,
+    },
+    {
       href: `${adminPath}/orders`,
       label: "Orders",
       icon: ShoppingCart,
+    },
+    {
+      href: `${adminPath}/customers`,
+      label: "Customers",
+      icon: Users,
+    },
+    {
+      href: `${adminPath}/settings`,
+      label: "Settings",
+      icon: Settings,
     },
   ];
 
