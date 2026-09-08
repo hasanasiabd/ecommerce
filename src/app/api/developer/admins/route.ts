@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { getAdminPanelPath } from "@/lib/env";
 
 /**
  * GET
@@ -56,6 +57,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       admins,
+      adminPanelPath: getAdminPanelPath(),
     });
   } catch (error) {
     console.error(

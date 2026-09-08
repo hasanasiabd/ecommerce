@@ -59,6 +59,9 @@ export default function AdminManagementPage() {
   const [admins, setAdmins] =
     useState<Admin[]>([]);
 
+  const [adminPath, setAdminPath] =
+    useState<string | null>(null);
+
   const [search, setSearch] =
     useState("");
 
@@ -156,6 +159,18 @@ export default function AdminManagementPage() {
       setAdmins(
         data.admins || []
       );
+
+      if (
+        typeof data.adminPanelPath ===
+        "string" &&
+        data.adminPanelPath.trim()
+      ) {
+        setAdminPath(
+          data.adminPanelPath
+        );
+      } else {
+        setAdminPath(null);
+      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -471,7 +486,14 @@ export default function AdminManagementPage() {
   function goToAdminPanel() {
     setMobileNavOpen(false);
 
-    router.push("/admin");
+    if (!adminPath) {
+      setError(
+        "Admin Panel path is unavailable."
+      );
+      return;
+    }
+
+    router.push(adminPath);
   }
 
   function goToCustomerPanel() {
