@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 export type MobileDrawerItem = {
   href: string;
@@ -24,6 +25,7 @@ type MobileDrawerProps = {
   title: string;
   subtitle?: string;
   items: MobileDrawerItem[];
+  footer?: ReactNode;
 };
 
 export function MobileDrawer({
@@ -32,6 +34,7 @@ export function MobileDrawer({
   title,
   subtitle = "Navigation",
   items,
+  footer,
 }: MobileDrawerProps) {
   const [mounted, setMounted] =
     useState(false);
@@ -205,9 +208,13 @@ export function MobileDrawer({
 
         {/* Footer */}
         <div className="shrink-0 border-t border-border p-4">
-          <p className="text-center text-xs text-muted-foreground">
-            MyShop
-          </p>
+          {footer ? (
+            footer
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              MyShop
+            </p>
+          )}
         </div>
       </aside>
     </>,

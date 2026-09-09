@@ -89,7 +89,7 @@ export function LogoutButton({
         <div
           role="status"
           aria-live="polite"
-          className="fixed left-1/2 top-5 z-[100] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-emerald-500/20 bg-card px-4 py-3 shadow-2xl ring-1 ring-black/5"
+          className="fixed left-1/2 top-5 z-[10000] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-emerald-500/20 bg-card px-4 py-3 shadow-2xl ring-1 ring-black/5"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
@@ -112,7 +112,7 @@ export function LogoutButton({
       {errorMessage && (
         <div
           role="alert"
-          className="fixed left-1/2 top-5 z-[100] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-red-500/20 bg-card px-4 py-3 text-sm font-medium text-red-500 shadow-2xl"
+          className="fixed left-1/2 top-5 z-[10000] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-red-500/20 bg-card px-4 py-3 text-sm font-medium text-red-500 shadow-2xl"
         >
           {errorMessage}
         </div>

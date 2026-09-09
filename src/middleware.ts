@@ -88,29 +88,17 @@ async function getRole(
 function rewrite(
   request: NextRequest,
   path: string,
-  panel?: "developer" | "admin"
+  shell?: "admin"
 ) {
-  const requestHeaders = new Headers(
-    request.headers
-  );
+  const requestHeaders = new Headers(request.headers);
 
-  if (panel) {
-    requestHeaders.set(
-      "x-myshop-panel",
-      panel
-    );
+  if (shell) {
+    requestHeaders.set("x-myshop-shell", shell);
   }
 
   return NextResponse.rewrite(
-    new URL(
-      path,
-      request.url
-    ),
-    {
-      request: {
-        headers: requestHeaders,
-      },
-    }
+    new URL(path, request.url),
+    { request: { headers: requestHeaders } }
   );
 }
 
@@ -204,8 +192,7 @@ export async function middleware(
         pathname.replace(
           developerPath,
           "/developer"
-        ) || "/developer",
-        "developer"
+        ) || "/developer"
       );
     }
 
@@ -230,8 +217,7 @@ export async function middleware(
 
     return rewrite(
       request,
-      internalPath,
-      "developer"
+      internalPath
     );
   }
 
@@ -265,7 +251,8 @@ export async function middleware(
         pathname.replace(
           adminPath,
           "/admin"
-        ) || "/admin"
+        ) || "/admin",
+        "admin"
       );
     }
 
@@ -291,7 +278,8 @@ export async function middleware(
 
     return rewrite(
       request,
-      internalPath
+      internalPath,
+      "admin"
     );
   }
 
