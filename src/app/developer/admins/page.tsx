@@ -8,25 +8,16 @@ import {
   useState,
 } from "react";
 import {
-  ArrowLeft,
-  Code2,
-  LayoutDashboard,
-  Menu,
   Plus,
   RefreshCcw,
   Search,
   ShieldCheck,
   UserCheck,
-  UserRound,
   UserX,
   Trash2,
   KeyRound,
   X,
 } from "lucide-react";
-import {
-  usePathname,
-  useRouter,
-} from "next/navigation";
 
 type Admin = {
   id: string;
@@ -53,14 +44,8 @@ const emptyForm: FormState = {
 };
 
 export default function AdminManagementPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-
   const [admins, setAdmins] =
     useState<Admin[]>([]);
-
-  const [adminPath, setAdminPath] =
-    useState<string | null>(null);
 
   const [search, setSearch] =
     useState("");
@@ -80,9 +65,6 @@ export default function AdminManagementPage() {
   const [showCreate, setShowCreate] =
     useState(false);
 
-  const [mobileNavOpen, setMobileNavOpen] =
-    useState(false);
-
   const [form, setForm] =
     useState<FormState>(
       emptyForm
@@ -93,45 +75,6 @@ export default function AdminManagementPage() {
 
   const [resetPassword, setResetPassword] =
     useState("");
-
-  /*
-   * IMPORTANT:
-   *
-   * The browser uses the environment-defined
-   * Developer Panel path.
-   *
-   * Example:
-   *
-   * /as1dev/admins
-   *      ↓
-   * /as1dev
-   *
-   * We intentionally do NOT hard-code
-   * "/developer" here.
-   */
-  const developerPath = useMemo(() => {
-    const currentPath =
-      pathname || "";
-
-    const adminPageSuffix =
-      "/admins";
-
-    if (
-      currentPath.endsWith(
-        adminPageSuffix
-      )
-    ) {
-      const basePath =
-        currentPath.slice(
-          0,
-          -adminPageSuffix.length
-        );
-
-      return basePath || "/";
-    }
-
-    return currentPath || "/";
-  }, [pathname]);
 
   async function loadAdmins() {
     try {
@@ -159,18 +102,6 @@ export default function AdminManagementPage() {
       setAdmins(
         data.admins || []
       );
-
-      if (
-        typeof data.adminPanelPath ===
-        "string" &&
-        data.adminPanelPath.trim()
-      ) {
-        setAdminPath(
-          data.adminPanelPath
-        );
-      } else {
-        setAdminPath(null);
-      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -185,54 +116,6 @@ export default function AdminManagementPage() {
   useEffect(() => {
     loadAdmins();
   }, []);
-
-  /*
-   * Close the mobile drawer whenever
-   * the route changes.
-   */
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [pathname]);
-
-  /*
-   * Prevent background scrolling while
-   * the mobile drawer is open.
-   */
-  useEffect(() => {
-    if (!mobileNavOpen) {
-      document.body.style.overflow =
-        "";
-      return;
-    }
-
-    document.body.style.overflow =
-      "hidden";
-
-    function handleKeyDown(
-      event: KeyboardEvent
-    ) {
-      if (
-        event.key === "Escape"
-      ) {
-        setMobileNavOpen(false);
-      }
-    }
-
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
-
-    return () => {
-      document.body.style.overflow =
-        "";
-
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-    };
-  }, [mobileNavOpen]);
 
   const filteredAdmins =
     useMemo(() => {
@@ -475,423 +358,15 @@ export default function AdminManagementPage() {
     }
   }
 
-  function goToDeveloper() {
-    setMobileNavOpen(false);
-
-    router.push(
-      developerPath
-    );
-  }
-
-  function goToAdminPanel() {
-    setMobileNavOpen(false);
-
-    if (!adminPath) {
-      setError(
-        "Admin Panel path is unavailable."
-      );
-      return;
-    }
-
-    router.push(adminPath);
-  }
-
-  function goToCustomerPanel() {
-    setMobileNavOpen(false);
-
-    router.push("/dashboard");
-  }
-
-  function goToStoreHome() {
-    setMobileNavOpen(false);
-
-    router.push("/");
-  }
-
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      {/* =====================================================
-          MOBILE HEADER
-         ===================================================== */}
-
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur lg:hidden">
-        <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setMobileNavOpen(
-                  true
-                )
-              }
-              aria-label="Open developer navigation"
-              aria-expanded={
-                mobileNavOpen
-              }
-              className="
-                inline-flex
-                h-10 w-10
-                shrink-0
-                items-center
-                justify-center
-                rounded-xl
-                border border-border
-                bg-card
-                transition
-                hover:bg-accent
-              "
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                MyShop
-              </p>
-
-              <p className="truncate text-sm font-bold">
-                Developer Panel
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              goToDeveloper
-            }
-            className="
-              inline-flex
-              shrink-0
-              items-center
-              gap-2
-              rounded-xl
-              border
-              border-border
-              bg-card
-              px-3
-              py-2
-              text-xs
-              font-medium
-              text-muted-foreground
-              transition
-              hover:bg-accent
-              hover:text-foreground
-            "
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back
-          </button>
-        </div>
-      </header>
-
-      {/* =====================================================
-          MOBILE DRAWER
-         ===================================================== */}
-
-      {mobileNavOpen && (
-        <div className="fixed inset-0 z-[100] lg:hidden">
-          {/* Overlay */}
-          <button
-            type="button"
-            aria-label="Close developer navigation"
-            onClick={() =>
-              setMobileNavOpen(
-                false
-              )
-            }
-            className="
-              absolute
-              inset-0
-              bg-black/60
-              backdrop-blur-sm
-            "
-          />
-
-          {/* Drawer */}
-          <aside
-            className="
-              relative
-              z-10
-              flex
-              h-full
-              w-[min(86vw,340px)]
-              flex-col
-              border-r
-              border-border
-              bg-card
-              shadow-2xl
-              animate-in
-              slide-in-from-left
-              duration-300
-            "
-          >
-            {/* Drawer Header */}
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
-                  <Code2 className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                    MyShop
-                  </p>
-
-                  <p className="text-sm font-bold">
-                    Developer Panel
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setMobileNavOpen(
-                    false
-                  )
-                }
-                aria-label="Close developer navigation"
-                className="
-                  inline-flex
-                  h-10 w-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  border
-                  border-border
-                  bg-background
-                  transition
-                  hover:bg-accent
-                "
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Drawer Navigation */}
-            <nav className="min-h-0 flex-1 overflow-y-auto p-4">
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  onClick={
-                    goToDeveloper
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    bg-indigo-500/10
-                    px-4
-                    py-3.5
-                    text-left
-                    text-sm
-                    font-medium
-                    text-indigo-500
-                    transition
-                    hover:bg-indigo-500/15
-                  "
-                >
-                  <Code2 className="h-5 w-5 shrink-0" />
-
-                  <span>
-                    Developer Panel
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMobileNavOpen(
-                      false
-                    )
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    bg-accent
-                    px-4
-                    py-3.5
-                    text-left
-                    text-sm
-                    font-medium
-                    text-foreground
-                  "
-                >
-                  <ShieldCheck className="h-5 w-5 shrink-0" />
-
-                  <span>
-                    Administrators
-                  </span>
-                </button>
-
-                <div className="my-4 border-t border-border" />
-
-                <button
-                  type="button"
-                  onClick={
-                    goToAdminPanel
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    px-4
-                    py-3.5
-                    text-left
-                    text-sm
-                    font-medium
-                    text-muted-foreground
-                    transition
-                    hover:bg-accent
-                    hover:text-foreground
-                  "
-                >
-                  <LayoutDashboard className="h-5 w-5 shrink-0" />
-
-                  <span>
-                    Admin Panel
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    goToCustomerPanel
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    px-4
-                    py-3.5
-                    text-left
-                    text-sm
-                    font-medium
-                    text-muted-foreground
-                    transition
-                    hover:bg-accent
-                    hover:text-foreground
-                  "
-                >
-                  <UserRound className="h-5 w-5 shrink-0" />
-
-                  <span>
-                    Customer Panel
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    goToStoreHome
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    px-4
-                    py-3.5
-                    text-left
-                    text-sm
-                    font-medium
-                    text-muted-foreground
-                    transition
-                    hover:bg-accent
-                    hover:text-foreground
-                  "
-                >
-                  <LayoutDashboard className="h-5 w-5 shrink-0" />
-
-                  <span>
-                    Store Home
-                  </span>
-                </button>
-              </div>
-            </nav>
-
-            {/* Drawer Footer */}
-            <div className="shrink-0 border-t border-border p-4">
-              <button
-                type="button"
-                onClick={
-                  goToDeveloper
-                }
-                className="
-                  flex
-                  w-full
-                  items-center
-                  gap-3
-                  rounded-2xl
-                  border
-                  border-border
-                  bg-background
-                  px-4
-                  py-3
-                  text-sm
-                  font-medium
-                  transition
-                  hover:bg-accent
-                "
-              >
-                <ArrowLeft className="h-4 w-4" />
-
-                Back to Developer Panel
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-
+    <main className="w-full">
       {/* =====================================================
           MAIN CONTENT
          ===================================================== */}
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="w-full">
         {/* Page Header */}
         <div className="mb-8 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-          {/* Desktop Back Button */}
-          <div className="mb-5 hidden lg:block">
-            <button
-              type="button"
-              onClick={
-                goToDeveloper
-              }
-              className="
-                inline-flex
-                items-center
-                gap-2
-                rounded-xl
-                border
-                border-border
-                bg-background
-                px-3.5
-                py-2
-                text-sm
-                font-medium
-                text-muted-foreground
-                transition
-                hover:bg-accent
-                hover:text-foreground
-              "
-            >
-              <ArrowLeft className="h-4 w-4" />
-
-              Developer Panel
-            </button>
-          </div>
-
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">

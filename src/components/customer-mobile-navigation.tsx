@@ -8,19 +8,16 @@ import {
   Heart,
   Home,
   LayoutDashboard,
-  LogOut,
+  Menu,
   Package,
   Settings,
   ShieldCheck,
-  Menu,
 } from "lucide-react";
 
 import {
   MobileDrawer,
   type MobileDrawerItem,
 } from "@/components/mobile-drawer";
-
-import { LogoutButton } from "@/components/logout-button";
 
 type CustomerMobileNavigationProps = {
   adminPath: string | null;
@@ -31,13 +28,11 @@ export function CustomerMobileNavigation({
   adminPath,
   developerPath,
 }: CustomerMobileNavigationProps) {
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
 
-  const handleClose =
-    useCallback(() => {
-      setOpen(false);
-    }, []);
+  const handleClose = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   const items: MobileDrawerItem[] = [
     {
@@ -87,24 +82,10 @@ export function CustomerMobileNavigation({
     <>
       <button
         type="button"
-        onClick={() =>
-          setOpen(true)
-        }
+        onClick={() => setOpen(true)}
         aria-label="Open customer navigation"
         aria-expanded={open}
-        className="
-          inline-flex h-10 w-10
-          shrink-0 items-center
-          justify-center
-          rounded-xl
-          border border-border
-          bg-card
-          text-muted-foreground
-          transition
-          hover:bg-accent
-          hover:text-foreground
-          lg:hidden
-        "
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:bg-accent hover:text-foreground lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -116,14 +97,6 @@ export function CustomerMobileNavigation({
         subtitle="MyShop"
         items={items}
       />
-
-      {/*
-       * Logout is kept separately because the shared
-       * MobileDrawer currently handles navigation links.
-       *
-       * The actual logout action will still be available
-       * from the mobile dashboard header in the layout.
-       */}
     </>
   );
 }

@@ -9,6 +9,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { headers } from "next/headers";
+
 import { getSession } from "@/lib/auth";
 import {
   getAdminPanelPath,
@@ -19,6 +21,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNavbarMenu } from "@/components/mobile-navbar-menu";
 
 export async function Navbar() {
+  const requestHeaders = await headers();
+
+  if (requestHeaders.get("x-myshop-panel") === "developer") {
+    return null;
+  }
+
   const session =
     await getSession();
 
