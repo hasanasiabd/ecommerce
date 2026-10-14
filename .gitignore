@@ -1,19 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-
-# AI Agents & Configs
-.agents
-.claude
-.cursor
-.devin
-.vscode
-.env
-
-
-ecommerce/
-ecommerce.zip
-
-# dependencies
+# ==========================================
+# Dependencies
+# ==========================================
 /node_modules
 /.pnp
 .pnp.*
@@ -23,36 +12,63 @@ ecommerce.zip
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env*
+!.env.example
 
-# next.js
+# ==========================================
+# Production & Next.js Builds
+# ==========================================
 /.next/
 /out/
-
-# production
 /build
 
-# misc
-.DS_Store
-*.pem
+# ==========================================
+# Testing & Code Coverage
+# ==========================================
+/coverage
 
-# debug
+# ==========================================
+# TypeScript
+# ==========================================
+*.tsbuildinfo
+next-env.d.ts
+
+# ==========================================
+# Deployment & Hosting
+# ==========================================
+.vercel
+
+# ==========================================
+# IDEs, AI Agents & Tooling Configs
+# ==========================================
+.vscode/
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# ==========================================
+# Debug Logs
+# ==========================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ==========================================
+# OS & System Files
+# ==========================================
+.DS_Store
+Thumbs.db
+*.pem
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-# Environment secrets
-.env
-.env.local
+# ==========================================
+# Local Archives & Project Backups
+# ==========================================
+ecommerce/
 ecommerce.zip
+*.zip
+*.tar.gz
